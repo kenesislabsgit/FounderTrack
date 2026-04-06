@@ -1,0 +1,319 @@
+# Implementation Plan: Production Hosting Readiness
+
+## Overview
+
+Transform FounderTrack from a prototype into a production-ready application deployed on Vercel with Firebase backend. Work is ordered: infrastructure/config → monolith decomposition → security fixes → data fixes → UI/UX overhaul → polish → security/vulnerability testing.
+
+## Tasks
+
+- [x] 1. Infrastructure and configuration setup
+  - [x] 1.1 Create `vercel.json` with SPA fallback and API routing
+    - Add rewrite rules: `/api/(.*)` → `/api/$1` and catch-all → `/index.html`
+    - _Requirements: 10.1, 10.2, 10.3_
+  - [x] 1.2 Fix `index.html` metadata
+    - Set title to "FounderTrack", add favicon link, add Open Graph meta tags (og:title, og:description, og:type)
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [x] 1.3 Install new dependencies
+    - Add `@heroui/react`, `@heroui/styles`, `react-router-dom`, `firebase-admin`, `@vercel/node` to package.json
+    - Add `fast-check`, `vitest`, `@testing-library/react`, `@testing-library/jest-dom` as devDependencies
+    - Remove `@google/genai` from client dependencies (moves to serverless only)
+    - _Requirements: 17.1, 17.2, 9.1_
+  - [x] 1.4 Update `src/types.ts` with new types
+    - Add `SessionState`, `Theme`, `AIChatRequest`, `AIChatResponse`, `AIAnalyzeRequest` types
+    - _Requirements: 17.43, 1.2_
+
+- [x] 2. Checkpoint - Ensure config and dependencies are correct
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 3. Core refactoring: monolith decomposition and routing
+  - [x] 3.1 Create `src/lib/constants.ts` with configurable values
+    - Define shift duration (8h), leave allowances (18 leave, 8 WFH), page sizes (20), expected start hour
+    - _Requirements: 3.2, 5.1, 6.1, 15.1_
+  - [x] 3.2 Create `src/hooks/useAuth.ts`
+    - Extract auth state + profile loading logic from App.tsx into a custom hook
+    - _Requirements: 16.3_
+  - [x] 3.3 Create `src/hooks/useTheme.ts`
+    - Implement dark/light mode with localStorage persistence, OS preference fallback, `data-theme` attribute on `<html>`
+    - Dark mode as default
+    - _Requirements: 17.32, 17.33, 17.34, 17.51_
+  - [x] 3.4 Create `src/hooks/usePagination.ts`
+    - Implement Firestore cursor-based pagination hook using `startAfter` and `limit`
+    - _Requirements: 15.1, 15.2, 15.3_
+  - [x] 3.5 Create route guard components
+    - Create `src/components/layout/ProtectedRoute.tsx` — redirects unauthenticated users to `/login`
+    - Create `src/components/layout/AdminRoute.tsx` — redirects non-admin users to `/dashboard`
+    - _Requirements: 9.5_
+  - [x] 3.6 Set up React Router in `src/main.tsx` and refactor `src/App.tsx`
+    - Wrap app in `BrowserRouter` and `HeroUIProvider`
+    - Replace `activeTab` state with route-based navigation
+    - Map each view to a URL path: `/dashboard`, `/attendance`, `/leaves`, `/reports`, `/analytics`, `/bot`, `/brainstorm`, `/team-management`, `/chopping-block`, `/settings`
+    - App.tsx should contain only routing, auth state, and layout shell
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 16.3_
+  - [x] 3.7 Extract page components from App.tsx
+    - Create `src/components/pages/LoginPage.tsx`
+    - Create `src/components/pages/DashboardPage.tsx`
+    - Create `src/components/pages/AttendancePage.tsx`
+    - Create `src/components/pages/LeavesPage.tsx`
+    - Create `src/components/pages/ReportsPage.tsx`
+    - Create `src/components/pages/AnalyticsPage.tsx`
+    - Create `src/components/pages/BotPage.tsx`
+    - Create `src/components/pages/BrainstormPage.tsx`
+    - Create `src/components/pages/TeamManagementPage.tsx`
+    - Create `src/components/pages/ChoppingBlockPage.tsx` (wraps existing component)
+    - Create `src/components/pages/SettingsPage.tsx`
+    - _Requirements: 16.1, 16.2_
+  - [x] 3.8 Extract shared UI components
+    - Create `src/components/ui/StatCard.tsx` using HeroUI Card
+    - Create `src/components/ui/AttendanceRow.tsx`
+    - Create `src/components/ui/RoleSelection.tsx` — remove "founder" option, only offer "employee" and "intern"
+    - _Requirements: 16.2, 14.3_
+
+- [x] 4. Checkpoint - Ensure routing and decomposition work correctly
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 5. Security fixes
+  - [x] 5.1 Create Vercel serverless AI proxy functions
+    - Create `api/ai/chat.ts` — verify Firebase ID token, forward to Gemini API, return response
+    - Create `api/ai/analyze.ts` — verify Firebase ID token, forward performance analysis to Gemini API
+    - Both functions read `GEMINI_API_KEY` from server-side env vars only
+    - Return HTTP 401 for invalid/missing tokens, HTTP 400 for malformed requests, HTTP 502 for Gemini failures
+    - _Requirements: 1.1, 1.3, 1.4, 1.5_
+  - [x] 5.2 Refactor `src/services/aiService.ts` to use AI proxy
+    - Replace direct Gemini API calls with `fetch('/api/ai/chat')` and `fetch('/api/ai/analyze')`
+    - Include Firebase ID token in Authorization header
+    - Remove `@google/genai` import from client code
+    - _Requirements: 1.2_
+  - [x] 5.3 Remove API key from client bundle
+    - Remove `define: { 'process.env.GEMINI_API_KEY': ... }` from `vite.config.ts`
+    - _Requirements: 1.6_
+  - [x] 5.4 Fix first-user-becomes-admin race condition
+    - Replace non-atomic first-user check with Firestore transaction using sentinel document (`settings/admin-assigned`) as lock
+    - Concurrent signup falls back to non-admin role
+    - _Requirements: 8.1, 8.2_
+  - [x] 5.5 Update Firestore security rules for role enforcement
+    - Ensure non-admin users cannot create documents with role "admin" or "founder"
+    - Ensure non-admin users cannot update their role to "admin" or "founder"
+    - Verify existing rules cover these cases, add explicit checks if needed
+    - _Requirements: 14.1, 14.2_
+  - [x] 5.6 Create Firebase Storage security rules
+    - Create `storage.rules` file with rules for `check-in-photos/{uid}/` path
+    - Allow authenticated users to write only to their own path
+    - Allow admins to read all paths
+    - Restrict uploads to 5MB max
+    - _Requirements: 2.4, 2.5, 2.6_
+
+- [x] 6. Checkpoint - Ensure security fixes are solid
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 7. Data integrity fixes
+  - [x] 7.1 Create `src/services/statsService.ts` with pure computation functions
+    - Implement `computeAvgShiftDuration(records)` — average of (checkOutTime - checkInTime) for records with both timestamps
+    - Implement `computeOnTimePercentage(records, expectedStartHour)` — percentage of records where checkInTime <= expected start
+    - Implement `computeAvgTaskCompletionRate(reports)` — total completed / total tasks * 100
+    - Implement `computeLeaveBalance(leaves, type, year, allowance)` — count approved requests for type+year
+    - Implement `computeShiftProgress(checkInTime, expectedDurationHours)` — min(100, elapsed/expected * 100)
+    - _Requirements: 3.1, 3.2, 4.1, 5.2, 5.3, 6.1, 6.3_
+  - [x] 7.2 Write property test: average shift duration (Property 2)
+    - **Property 2: Average shift duration is correct**
+    - **Validates: Requirements 3.1**
+  - [x] 7.3 Write property test: on-time arrival percentage (Property 3)
+    - **Property 3: On-time arrival percentage is correct**
+    - **Validates: Requirements 3.2**
+  - [x] 7.4 Write property test: task completion rate (Property 4)
+    - **Property 4: Task completion rate is correct**
+    - **Validates: Requirements 4.1**
+  - [x] 7.5 Write property test: leave/WFH balance (Property 5)
+    - **Property 5: Leave/WFH balance computation**
+    - **Validates: Requirements 5.2, 5.3**
+  - [x] 7.6 Write property test: shift progress with cap (Property 6)
+    - **Property 6: Shift progress computation with cap**
+    - **Validates: Requirements 6.1, 6.3**
+  - [x] 7.7 Create `src/services/storageService.ts` for Firebase Storage photo uploads
+    - Implement `uploadCheckInPhoto(uid, date, file, filename)` returning download URL
+    - Path convention: `check-in-photos/{uid}/{date}/{filename}`
+    - _Requirements: 2.1, 2.2_
+  - [x] 7.8 Write property test: storage path convention (Property 1)
+    - **Property 1: Storage path follows convention**
+    - **Validates: Requirements 2.1**
+  - [x] 7.9 Refactor check-in photo flow in DashboardPage
+    - Modify `processImage` to produce a Blob instead of base64 data URL
+    - Call `uploadCheckInPhoto` and store the download URL in Firestore attendance document
+    - Render photos using Firebase Storage download URL
+    - _Requirements: 2.1, 2.2, 2.3_
+  - [x] 7.10 Wire computed stats into page components
+    - AttendancePage: replace hardcoded "8.4 hrs" and "92%" with `computeAvgShiftDuration` and `computeOnTimePercentage`
+    - AnalyticsPage: replace hardcoded "94%" with `computeAvgTaskCompletionRate`
+    - LeavesPage: replace hardcoded "12/18" and "4/8" with `computeLeaveBalance`
+    - DashboardPage: replace hardcoded 45% progress with `computeShiftProgress`
+    - _Requirements: 3.3, 3.4, 4.2, 5.4, 6.2_
+  - [x] 7.11 Implement AI bot context summarization
+    - Create `summarizeForAI` function in dataService or a new utility
+    - Compute summary stats (totalUsers, totalAttendanceRecords, avgHours, taskCompletionRate) client-side
+    - Truncate to most recent 50 records when dataset exceeds 50
+    - Send summary + user message to AI proxy instead of raw data
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [x] 7.12 Write property test: AI context summarization (Property 8)
+    - **Property 8: AI context summarization reduces payload size**
+    - **Validates: Requirements 12.1, 12.2**
+  - [x] 7.13 Write property test: dataset truncation (Property 9)
+    - **Property 9: Dataset truncation to 50 records**
+    - **Validates: Requirements 12.3**
+
+- [x] 8. Checkpoint - Ensure data integrity and computed stats are correct
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 9. UI/UX overhaul: HeroUI integration and glass design system
+  - [x] 9.1 Set up CSS architecture in `src/index.css`
+    - Define CSS custom variables on `:root` and `[data-theme="dark"]` for all theme colors
+    - Accent gold: `hsl(40 95% 52%)` dark / `hsl(36 95% 46%)` light
+    - Dark bg: `hsl(225 15% 7%)`, Light bg: `hsl(42 25% 97%)`
+    - Define `.glass`, `.glass-elevated`, `.inset-well` classes in `@layer components`
+    - Define CSS animations: `glow-pulse`, `float`, `breathe`, `slide-up-fade`, `scale-in`
+    - Custom scrollbar (5px, transparent track, subtle thumb)
+    - Focus rings (2px offset, accent color)
+    - Gradient accent dividers
+    - _Requirements: 17.7, 17.8, 17.9, 17.10, 17.13, 17.14, 17.15, 17.48, 17.55, 17.57, 17.58_
+  - [x] 9.2 Create `src/lib/variants.ts` with HeroUI variant system
+    - Define `skeuButtonVariants` using `tv()` extending `buttonVariants` — primary (gold gradient, inset highlight, bottom shadow), ghost, secondary, tertiary, danger
+    - Define `glassCardVariants` extending `cardVariants` — glass, elevated, inset, flat
+    - Define `badgeVariants` — default (gold), success, warning, danger, muted
+    - All with consistent sm/md/lg sizes
+    - Hover: lift 0.5px + ambient glow (150ms). Press: sink 0.5px + inset shadow (150ms)
+    - _Requirements: 17.16, 17.17, 17.18, 17.19, 17.20, 17.21, 17.22, 17.23, 17.24, 17.49, 17.50_
+  - [x] 9.3 Create `src/components/ui/StatusDot.tsx`
+    - Render colored circle based on SessionState
+    - Active: gold with emerald green pulse animation
+    - On-break: static amber/orange
+    - Away: static muted gray
+    - Offline: very faint muted
+    - _Requirements: 17.43, 17.44, 17.45, 17.46, 17.47_
+  - [x] 9.4 Write property test: StatusDot visual mapping (Property 10)
+    - **Property 10: StatusDot maps session state to correct visual**
+    - **Validates: Requirements 17 (criteria 43-47)**
+  - [x] 9.5 Redesign `src/components/Sidebar.tsx`
+    - 220px fixed width, solid background (not glass)
+    - Golden gradient "K" logo mark with inset highlight
+    - Nav items grouped: "Core" and "Team Ops" with visual dividers
+    - Active item: golden gradient background with 3D button treatment (NavLink)
+    - Hover: subtle accent background
+    - Bottom: user avatar with StatusDot, theme toggle above it
+    - Mobile: collapse to toggleable overlay/hamburger below 768px
+    - _Requirements: 17.36, 17.37, 17.38, 17.39, 17.40, 17.41, 17.42, 17.25_
+  - [x] 9.6 Create `src/components/layout/Header.tsx`
+    - Display page title based on current route
+    - Remove decorative search bar
+    - Show notification bell
+    - Fix "Team Management" title for team-management route
+    - _Requirements: 7.1, 13.1_
+  - [x] 9.7 Restyle ErrorBoundary with HeroUI components
+    - Use HeroUI Card and Button for recovery UI
+    - _Requirements: 17.3_
+
+- [x] 10. Checkpoint - Ensure design system and UI components render correctly
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 11. Polish: toast notifications, loading states, dark mode, and pagination wiring
+  - [x] 11.1 Create toast notification system
+    - Create `src/components/ui/ToastProvider.tsx` with context for `addToast(message, variant, duration?)`
+    - Create `src/components/ui/Toast.tsx` using HeroUI Alert with AnimatePresence
+    - Support info/success/warning/error variants, auto-dismiss (default 4s)
+    - _Requirements: 17.27, 17.28, 17.29_
+  - [x] 11.2 Replace all `alert()` calls with toast notifications
+    - Search and replace every `alert()` in the codebase with `addToast()` calls using appropriate variants
+    - _Requirements: 17.27_
+  - [x] 11.3 Add HeroUI Skeleton loading states to all page components
+    - Show skeleton placeholders matching expected content layout while data loads
+    - Use subtle shimmer animation
+    - _Requirements: 17.30, 17.31_
+  - [x] 11.4 Wire pagination into AttendancePage, ReportsPage, and LeavesPage
+    - Use `usePagination` hook with page size 20 for attendance
+    - Add "Load More" control at end of each list
+    - _Requirements: 15.1, 15.2, 15.3_
+  - [x] 11.5 Implement dark mode toggle in SettingsPage
+    - Replace "Coming Soon" placeholder with functional HeroUI Switch
+    - Wire to `useTheme` hook
+    - _Requirements: 17.32, 17.33_
+  - [x] 11.6 Apply light mode micro-details
+    - Glass surfaces: higher-opacity white insets, warm brown shadows
+    - Inset-well: lighten to match warm cream background
+    - Golden accent: shift warmer/darker for contrast
+    - _Requirements: 17.52, 17.53, 17.54_
+  - [x] 11.7 Apply responsive layout for mobile viewports
+    - Ensure all page content usable at 320px width
+    - _Requirements: 17.25, 17.26_
+  - [x] 11.8 Add data attribute styling for interactive components
+    - Use `data-pressed`, `data-hovered`, `data-focused`, `data-disabled` for state-based styling
+    - _Requirements: 17.59_
+  - [x] 11.9 Write unit tests for toast system
+    - Test auto-dismiss timing, variant rendering
+    - _Requirements: 17.27, 17.28, 17.29_
+  - [x] 11.10 Write unit tests for theme hook
+    - Test localStorage persistence, data-theme attribute, OS preference fallback
+    - _Requirements: 17.32, 17.33, 17.34_
+  - [x] 11.11 Write property test: auth guard redirect (Property 7)
+    - **Property 7: Auth guard redirects unauthenticated users**
+    - **Validates: Requirements 9.5**
+
+- [x] 12. Checkpoint - Ensure polish features work end-to-end
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 13. Security and vulnerability testing
+  - [x] 13.1 Write Firestore security rules tests
+    - Test that non-admin users cannot create user documents with role "admin" or "founder"
+    - Test that non-admin users cannot update their role to "admin" or "founder"
+    - Test that admin users CAN assign roles
+    - Test role escalation prevention: employee → admin, intern → founder
+    - Test data access control: users can only read/write their own attendance, reports, leaves
+    - Test admin can read all attendance, reports, leaves
+    - Use Firebase emulator for rule testing
+    - _Requirements: 14.1, 14.2_
+  - [x] 13.2 Write Firebase Storage security rules tests
+    - Test path enforcement: user can only upload to `check-in-photos/{own-uid}/`
+    - Test that user cannot upload to another user's path
+    - Test 5MB size limit enforcement
+    - Test admin read access to all paths
+    - Test unauthenticated access is denied
+    - Use Firebase emulator for rule testing
+    - _Requirements: 2.4, 2.5, 2.6_
+  - [x] 13.3 Write AI proxy auth token verification tests
+    - Test valid Firebase ID token returns 200 with AI response
+    - Test invalid token returns HTTP 401 `{ error: 'Unauthorized' }`
+    - Test missing Authorization header returns HTTP 401
+    - Test expired token returns HTTP 401
+    - Test malformed request body returns HTTP 400
+    - Mock Firebase Admin SDK and Gemini SDK
+    - _Requirements: 1.3, 1.5_
+  - [x] 13.4 Write XSS prevention tests
+    - Test that user-generated content in BrainstormPage (title, description) is properly escaped/sanitized when rendered
+    - Test that AI bot chat responses are safely rendered (no raw HTML injection)
+    - Test that user display names with HTML/script tags are escaped in all views
+    - Test that daily report content is sanitized
+    - Verify React's default JSX escaping is not bypassed (no `dangerouslySetInnerHTML` without sanitization)
+    - _Requirements: 14.1, 17.27_
+  - [x] 13.5 Write CSRF protection verification tests
+    - Verify AI proxy endpoints require Firebase ID token (acts as CSRF protection)
+    - Test that requests without Authorization header are rejected
+    - Test that cross-origin requests without valid token fail
+    - _Requirements: 1.3, 1.5_
+  - [x] 13.6 Run dependency vulnerability audit
+    - Run `npm audit` and document findings
+    - Verify no critical or high severity vulnerabilities in production dependencies
+    - _Requirements: 1.1_
+  - [x] 13.7 Write environment variable leak tests
+    - Verify `GEMINI_API_KEY` is NOT present in the Vite client bundle after build
+    - Test that `vite.config.ts` does not contain `define` entry for `process.env.GEMINI_API_KEY`
+    - Build the project and grep the output `dist/` directory for the API key pattern
+    - Verify no `.env` values leak into client-side JavaScript
+    - _Requirements: 1.1, 1.6_
+
+- [x] 14. Final checkpoint - Ensure all tests pass and security is validated
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation
+- Property tests validate universal correctness properties from the design document
+- Security testing tasks (13.x) validate the security posture of the entire application
+- Implementation uses TypeScript throughout (React client + Vercel serverless functions)

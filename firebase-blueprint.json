@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application, typically a founder or admin.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "name": { "type": "string", "description": "Full name of the user." },
+        "email": { "type": "string", "description": "Email address of the user." },
+        "role": { "type": "string", "enum": ["founder", "admin", "intern", "employee"], "description": "Role of the user." },
+        "photoURL": { "type": "string", "description": "URL to the user's profile photo." }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "A record of a user's attendance for a specific day.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "UID of the user." },
+        "date": { "type": "string", "format": "date", "description": "Date of the record (YYYY-MM-DD)." },
+        "checkInTime": { "type": "string", "format": "date-time", "description": "Time of check-in." },
+        "checkOutTime": { "type": "string", "format": "date-time", "description": "Time of check-out." },
+        "checkInLocation": { "type": "object", "description": "Latitude and longitude at check-in." },
+        "checkOutLocation": { "type": "object", "description": "Latitude and longitude at check-out." },
+        "checkInPhoto": { "type": "string", "description": "Base64 or URL of check-in photo proof." },
+        "checkOutPhoto": { "type": "string", "description": "Base64 or URL of check-out photo proof." },
+        "totalHours": { "type": "number", "description": "Total hours worked on this day." },
+        "status": { "type": "string", "enum": ["present", "wfh", "leave"], "description": "Attendance status." }
+      },
+      "required": ["uid", "date", "status"]
+    },
+    "DailyReport": {
+      "title": "DailyReport",
+      "description": "A daily report and to-do list for a user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "UID of the user." },
+        "date": { "type": "string", "format": "date", "description": "Date of the report (YYYY-MM-DD)." },
+        "reportUrl": { "type": "string", "description": "URL or base64 of the PDF report." },
+        "todoList": { "type": "array", "items": { "type": "string" }, "description": "List of tasks for the day." }
+      },
+      "required": ["uid", "date"]
+    },
+    "Leave": {
+      "title": "Leave",
+      "description": "A leave or WFH request.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "UID of the user." },
+        "startDate": { "type": "string", "format": "date", "description": "Start date of the leave." },
+        "endDate": { "type": "string", "format": "date", "description": "End date of the leave." },
+        "reason": { "type": "string", "description": "Reason for the leave/WFH." },
+        "type": { "type": "string", "enum": ["leave", "wfh"], "description": "Type of request." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Status of the request." }
+      },
+      "required": ["uid", "startDate", "endDate", "reason", "type", "status"]
+    },
+    "BrainstormIdea": {
+      "title": "BrainstormIdea",
+      "description": "An idea or to-do item posted in the Kenesis Brainstorm forum.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "UID of the user who posted the idea." },
+        "authorName": { "type": "string", "description": "Name of the author." },
+        "title": { "type": "string", "description": "Title of the idea or to-do." },
+        "description": { "type": "string", "description": "Detailed description of the idea." },
+        "category": { "type": "string", "enum": ["idea", "todo", "discussion"], "description": "Category of the post." },
+        "status": { "type": "string", "enum": ["open", "in-progress", "completed", "archived"], "description": "Current status of the idea or task." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time when the idea was posted." },
+        "upvotes": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs of users who upvoted." }
+      },
+      "required": ["uid", "authorName", "title", "description", "category", "status", "createdAt"]
+    },
+    "ReviewCycle": {
+      "title": "ReviewCycle",
+      "description": "A 2-week review cycle for founder performance evaluation.",
+      "type": "object",
+      "properties": {
+        "startDate": { "type": "string", "format": "date-time", "description": "Start of the cycle." },
+        "endDate": { "type": "string", "format": "date-time", "description": "End of the cycle." },
+        "status": { "type": "string", "enum": ["active", "voting", "completed"], "description": "Current status of the cycle." },
+        "underperformerUid": { "type": "string", "description": "UID of the founder ranked lowest." },
+        "isTie": { "type": "boolean", "description": "Whether there was a tie for the bottom rank." },
+        "tieBreakerUid": { "type": "string", "description": "UID of the founder chosen by the CEO in case of a tie." },
+        "results": { "type": "object", "description": "Aggregated ranking results." }
+      },
+      "required": ["startDate", "endDate", "status"]
+    },
+    "Ballot": {
+      "title": "Ballot",
+      "description": "An anonymous vote cast by a founder during a review cycle.",
+      "type": "object",
+      "properties": {
+        "cycleId": { "type": "string", "description": "ID of the review cycle." },
+        "voterUid": { "type": "string", "description": "UID of the founder who voted." },
+        "rankings": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "targetUid": { "type": "string" },
+              "rank": { "type": "number" },
+              "reason": { "type": "string" }
+            }
+          },
+          "description": "Rankings of other founders."
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the vote was cast." }
+      },
+      "required": ["cycleId", "voterUid", "rankings", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profile documents." },
+    "/attendance/{recordId}": { "schema": "Attendance", "description": "Attendance records." },
+    "/dailyReports/{reportId}": { "schema": "DailyReport", "description": "Daily reports and to-do lists." },
+    "/leaves/{leaveId}": { "schema": "Leave", "description": "Leave and WFH requests." },
+    "/brainstorm/{ideaId}": { "schema": "BrainstormIdea", "description": "Brainstorming ideas and to-do items." },
+    "/reviewCycles/{cycleId}": { "schema": "ReviewCycle", "description": "Review cycle records." },
+    "/ballots/{ballotId}": { "schema": "Ballot", "description": "Founder ballots." }
+  }
+}

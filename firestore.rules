@@ -1,0 +1,258 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - role: string (required, 'founder' or 'admin')
+    //   - photoURL: string (optional)
+    //
+    // Collection: attendance
+    // Document ID: {recordId}
+    // Fields:
+    //   - uid: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - checkInTime: timestamp (optional)
+    //   - checkOutTime: timestamp (optional)
+    //   - checkInLocation: map (optional)
+    //   - checkOutLocation: map (optional)
+    //   - checkInPhoto: string (optional)
+    //   - checkOutPhoto: string (optional)
+    //   - totalHours: number (optional)
+    //   - status: string (required, 'present', 'wfh', 'leave')
+    //
+    // Collection: dailyReports
+    // Document ID: {reportId}
+    // Fields:
+    //   - uid: string (required)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - reportUrl: string (optional)
+    //   - todoList: list (optional)
+    //
+    // Collection: leaves
+    // Document ID: {leaveId}
+    // Fields:
+    //   - uid: string (required)
+    //   - startDate: string (required, YYYY-MM-DD)
+    //   - endDate: string (required, YYYY-MM-DD)
+    //   - reason: string (required)
+    //   - type: string (required, 'leave', 'wfh')
+    //   - status: string (required, 'pending', 'approved', 'rejected')
+    //
+    // Collection: notifications
+    // Document ID: {notificationId}
+    // Fields:
+    //   - uid: string (required)
+    //   - title: string (required)
+    //   - message: string (required)
+    //   - type: string (required, 'info', 'success', 'warning', 'error')
+    //   - read: boolean (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: reviewCycles
+    // Document ID: {cycleId}
+    // Fields:
+    //   - startDate: timestamp (required)
+    //   - endDate: timestamp (required)
+    //   - status: string (required, 'active', 'voting', 'completed')
+    //   - underperformerUid: string (optional)
+    //   - isTie: boolean (optional)
+    //   - tieBreakerUid: string (optional)
+    //   - results: map (optional)
+    //
+    // Collection: ballots
+    // Document ID: {ballotId}
+    // Fields:
+    //   - cycleId: string (required)
+    //   - voterUid: string (required)
+    //   - rankings: list (required)
+    //   - createdAt: timestamp (required)
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isFounder() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'founder';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "kenesislabs@gmail.com" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['founder', 'admin', 'intern', 'employee'];
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['uid', 'date', 'status']) &&
+             data.uid is string &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.status in ['present', 'wfh', 'leave'] &&
+             (!('totalHours' in data) || data.totalHours is number);
+    }
+
+    function isValidDailyReport(data) {
+      return data.keys().hasAll(['uid', 'date']) &&
+             data.uid is string &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             (!('todoList' in data) || data.todoList is list);
+    }
+
+    function isValidLeave(data) {
+      return data.keys().hasAll(['uid', 'startDate', 'endDate', 'reason', 'type', 'status']) &&
+             data.uid is string &&
+             data.startDate is string && data.startDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.endDate is string && data.endDate.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() < 500 &&
+             data.type in ['leave', 'wfh'] &&
+             data.status in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['uid', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.uid is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.type in ['info', 'success', 'warning', 'error'] &&
+             data.read is bool &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidBrainstorm(data) {
+      return data.keys().hasAll(['uid', 'authorName', 'title', 'description', 'category', 'status', 'createdAt']) &&
+             data.uid is string &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 5000 &&
+             data.category in ['idea', 'todo', 'discussion'] &&
+             data.status in ['open', 'in-progress', 'completed', 'archived'] &&
+             (!('upvotes' in data) || data.upvotes is list);
+    }
+
+    function isValidReviewCycle(data) {
+      return data.keys().hasAll(['startDate', 'endDate', 'status']) &&
+             data.startDate is timestamp &&
+             data.endDate is timestamp &&
+             data.status in ['active', 'voting', 'completed'];
+    }
+
+    function isValidBallot(data) {
+      return data.keys().hasAll(['cycleId', 'voterUid', 'rankings', 'createdAt']) &&
+             data.cycleId is string &&
+             data.voterUid is string &&
+             data.rankings is list &&
+             data.createdAt is timestamp;
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    // Role enforcement (Requirements 14.1, 14.2):
+    //   - On create: non-admin users can only set role to "employee" or "intern".
+    //     Admin users can assign any valid role (including "admin" and "founder").
+    //   - On update: non-admin owners cannot change their role at all
+    //     (request.resource.data.role == resource.data.role).
+    //     Admin users can change any user's role to any valid value.
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) && 
+                    (request.resource.data.role in ['employee', 'intern'] || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(uid) || isAdmin()) && isValidUser(request.resource.data) && 
+                    (
+                      (isOwner(uid) && request.resource.data.role == resource.data.role) || 
+                      isAdmin()
+                    );
+    }
+
+    match /attendance/{recordId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.uid) && isValidAttendance(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin()) && isValidAttendance(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'date']);
+      allow delete: if isAdmin();
+    }
+
+    match /dailyReports/{reportId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.uid) && isValidDailyReport(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin()) && isValidDailyReport(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'date']);
+      allow delete: if isAdmin();
+    }
+
+    match /leaves/{leaveId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.uid) && isValidLeave(request.resource.data) && (request.resource.data.status == 'pending' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin()) && isValidLeave(request.resource.data) && areImmutableFieldsUnchanged(['uid']) && (request.resource.data.status == resource.data.status || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.uid);
+      allow create: if isAuthenticated() && (isOwner(request.resource.data.uid) || isAdmin());
+      allow update: if isAuthenticated() && isOwner(resource.data.uid) && isValidNotification(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'createdAt', 'title', 'message', 'type']);
+      allow delete: if isAuthenticated() && isOwner(resource.data.uid);
+    }
+
+    match /brainstorm/{ideaId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.uid) && isValidBrainstorm(request.resource.data) && (request.resource.data.status == 'open' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin()) && isValidBrainstorm(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'authorName', 'createdAt']) && (request.resource.data.status == resource.data.status || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.uid) || isAdmin());
+    }
+
+    match /reviewCycles/{cycleId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /ballots/{ballotId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isOwner(request.resource.data.voterUid) && isValidBallot(request.resource.data);
+      allow update: if false; // Ballots are secret and immutable
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Settings collection — sentinel document for atomic admin assignment
+    // ===============================================================
+    match /settings/{settingId} {
+      // Only the admin-assigned sentinel is expected here.
+      // Allow create during the first-user transaction (no admin exists yet).
+      // Once created, only admins may read or modify it.
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}

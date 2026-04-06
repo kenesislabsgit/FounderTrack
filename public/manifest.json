@@ -1,0 +1,16 @@
+{
+  "name": "Kenesis Vision — FounderTrack",
+  "short_name": "FounderTrack",
+  "description": "Workspace management and team tracking platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111318",
+  "theme_color": "#d4930a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

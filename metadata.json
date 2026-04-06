@@ -1,0 +1,8 @@
+{
+  "name": "FounderTrack",
+  "description": "A comprehensive tracking and analytics dashboard for company founders to monitor workspace attendance, daily reports, and leave management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
