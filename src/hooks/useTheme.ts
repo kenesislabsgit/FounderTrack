@@ -10,14 +10,7 @@ function getInitialTheme(): Theme {
     return stored;
   }
 
-  // 2. Fall back to OS preference
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-      return 'light';
-    }
-  }
-
-  // 3. Default to dark
+  // 2. Default to dark (design system is optimized for dark mode)
   return 'dark';
 }
 

@@ -1,8 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Prevent flash of wrong theme — set data-theme before CSS loads
+      (function() {
+        var t = localStorage.getItem('theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+        // else keep the default "dark" from the html attribute
+      })();
+    </script>
 
     <!-- Title & Description -->
     <title>FounderTrack — Kenesis Vision</title>
