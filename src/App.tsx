@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Spinner } from '@heroui/react';
+
 import { useAuthContext } from './contexts/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/layout/Header';
@@ -26,7 +26,7 @@ function LoadingSpinner() {
   return (
     <div className="flex h-screen items-center justify-center bg-[hsl(var(--bg-primary))]">
       <div className="flex flex-col items-center gap-4">
-        <Spinner size="lg" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[hsl(var(--accent))] border-t-transparent" />
         <p className="text-sm font-medium text-[hsl(var(--text-muted))]">Kenesis Vision Loading...</p>
       </div>
     </div>

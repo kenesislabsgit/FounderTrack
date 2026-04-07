@@ -3,7 +3,7 @@ import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { UserProfile } from '../../types';
-import { Button } from '@heroui/react';
+
 import { Users, Shield, Edit2, Check, X } from 'lucide-react';
 
 export default function TeamManagementPage() {
@@ -136,30 +136,27 @@ export default function TeamManagementPage() {
                 <td className="px-6 py-4 text-right">
                   {editingUid === u.uid ? (
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onPress={() => handleSaveRole(u.uid)}
+                      <button
+                        onClick={() => handleSaveRole(u.uid)}
+                        className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
                       >
                         <Check size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={() => setEditingUid(null)}
+                      </button>
+                      <button
+                        onClick={() => setEditingUid(null)}
+                        className="rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2"
                       >
                         <X size={14} />
-                      </Button>
+                      </button>
                     </div>
                   ) : (
                     profile?.role === 'admin' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={() => handleEditRole(u)}
+                      <button
+                        onClick={() => handleEditRole(u)}
+                        className="rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2"
                       >
                         <Edit2 size={14} />
-                      </Button>
+                      </button>
                     )
                   )}
                 </td>

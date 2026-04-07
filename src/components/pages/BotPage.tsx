@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
 import { summarizeForAI } from '../../lib/summarize';
-import { Button } from '@heroui/react';
+
 import { Bot, Send, Trash2 } from 'lucide-react';
 
 interface ChatMessage {
@@ -92,14 +92,13 @@ export default function BotPage() {
           <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Ask questions about team performance and analytics.</p>
         </div>
         {messages.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={() => setMessages([])}
+          <button
+            onClick={() => setMessages([])}
+            className="rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2"
           >
             <Trash2 size={14} />
             Clear Chat
-          </Button>
+          </button>
         )}
       </div>
 
@@ -118,14 +117,13 @@ export default function BotPage() {
                 'Who has the best attendance?',
                 'What is the average task completion rate?',
               ].map((suggestion) => (
-                <Button
+                <button
                   key={suggestion}
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => setInput(suggestion)}
+                  onClick={() => setInput(suggestion)}
+                  className="rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2"
                 >
                   {suggestion}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
@@ -166,13 +164,13 @@ export default function BotPage() {
           className="flex-1 rounded-xl inset-well px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
           disabled={loading}
         />
-        <Button
-          variant="primary"
-          onPress={handleSend}
-          isDisabled={loading || !input.trim()}
+        <button
+          onClick={handleSend}
+          disabled={loading || !input.trim()}
+          className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
         >
           <Send size={18} />
-        </Button>
+        </button>
       </div>
     </div>
   );

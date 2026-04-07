@@ -16,7 +16,7 @@ import {
 import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { BrainstormIdea } from '../../types';
-import { Button } from '@heroui/react';
+
 import { Lightbulb, ThumbsUp, Plus, X, MessageSquare, CheckCircle2, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -114,13 +114,13 @@ export default function BrainstormPage() {
           <h2 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Kenesis Brainstorm</h2>
           <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Share ideas, vote on priorities, and collaborate.</p>
         </div>
-        <Button
-          variant="primary"
-          onPress={() => setShowForm(!showForm)}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
         >
           {showForm ? <X size={16} /> : <Plus size={16} />}
           {showForm ? 'Cancel' : 'New Idea'}
-        </Button>
+        </button>
       </div>
 
       {/* New Idea Form */}
@@ -142,39 +142,39 @@ export default function BrainstormPage() {
           />
           <div className="flex items-center gap-3">
             {(['idea', 'todo', 'discussion'] as const).map((cat) => (
-              <Button
+              <button
                 key={cat}
-                variant={category === cat ? 'primary' : 'ghost'}
-                size="sm"
-                onPress={() => setCategory(cat)}
-                className="capitalize"
+                onClick={() => setCategory(cat)}
+                className={category === cat
+                  ? "rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2 capitalize"
+                  : "rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2 capitalize"}
               >
                 {cat}
-              </Button>
+              </button>
             ))}
           </div>
-          <Button
-            variant="primary"
-            onPress={handleSubmit}
-            isDisabled={submitting || !title.trim()}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !title.trim()}
+            className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
           >
             {submitting ? 'Posting...' : 'Post Idea'}
-          </Button>
+          </button>
         </div>
       )}
 
       {/* Filters */}
       <div className="flex gap-2">
         {(['all', 'idea', 'todo', 'discussion'] as const).map((f) => (
-          <Button
+          <button
             key={f}
-            variant={filter === f ? 'primary' : 'ghost'}
-            size="sm"
-            onPress={() => setFilter(f)}
-            className="capitalize"
+            onClick={() => setFilter(f)}
+            className={filter === f
+              ? "rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2 capitalize"
+              : "rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2 capitalize"}
           >
             {f}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -204,15 +204,15 @@ export default function BrainstormPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant={hasUpvoted ? 'primary' : 'ghost'}
-                    size="sm"
-                    onPress={() => handleUpvote(idea)}
-                    className="gap-1"
+                  <button
+                    onClick={() => handleUpvote(idea)}
+                    className={hasUpvoted
+                      ? "rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-1"
+                      : "rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-1"}
                   >
                     <ThumbsUp size={12} />
                     {idea.upvotes?.length || 0}
-                  </Button>
+                  </button>
                   {(profile?.role === 'admin' || idea.uid === user?.uid) && (
                     <select
                       value={idea.status}

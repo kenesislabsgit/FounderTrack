@@ -12,7 +12,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile } from '../../types';
 import { EXPECTED_START_HOUR, DEFAULT_PAGE_SIZE } from '../../lib/constants';
 import { computeAvgShiftDuration, computeOnTimePercentage } from '../../services/statsService';
-import { Button } from '@heroui/react';
+
 import { Clock, TrendingUp, Users, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -203,12 +203,12 @@ export default function AttendancePage() {
 
       {hasMore && (
         <div className="flex justify-center">
-          <Button
-            variant="secondary"
-            onPress={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+          <button
+            onClick={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+            className="rounded-xl bg-[hsl(var(--bg-elevated))] border border-[hsl(var(--border-default))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.05)] transition-colors flex items-center gap-2"
           >
             Load More ({records.length - displayCount} remaining)
-          </Button>
+          </button>
         </div>
       )}
     </div>

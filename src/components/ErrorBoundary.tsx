@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ErrorInfo, ReactNode } from 'react';
-import { Button } from '@heroui/react';
+
 
 interface Props {
   children: ReactNode;
@@ -44,12 +44,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </p>
             </div>
             <div className="pt-2 p-6">
-              <Button
-                variant="danger"
-                onPress={() => window.location.reload()}
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(0,80%,75%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 Reload Application
-              </Button>
+              </button>
             </div>
           </div>
         </div>

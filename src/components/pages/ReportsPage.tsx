@@ -11,7 +11,7 @@ import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { DailyReport, UserProfile } from '../../types';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants';
-import { Button } from '@heroui/react';
+
 import { FileText, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -162,12 +162,12 @@ export default function ReportsPage() {
 
       {hasMore && (
         <div className="flex justify-center">
-          <Button
-            variant="secondary"
-            onPress={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+          <button
+            onClick={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+            className="rounded-xl bg-[hsl(var(--bg-elevated))] border border-[hsl(var(--border-default))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.05)] transition-colors flex items-center gap-2"
           >
             Load More ({reports.length - displayCount} remaining)
-          </Button>
+          </button>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Button, Separator } from '@heroui/react';
+
 import {
   LayoutDashboard,
   Clock,
@@ -141,7 +141,7 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         <NavGroup label="Core" items={core} onNavigate={closeMobile} />
         {core.length > 0 && teamOps.length > 0 && (
-          <Separator className="accent-divider mx-2" />
+          <hr className="accent-divider mx-2" />
         )}
         <NavGroup label="Team Ops" items={teamOps} onNavigate={closeMobile} />
       </div>
@@ -183,15 +183,13 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
               {profile?.role || 'employee'}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={onLogout}
+          <button
+            onClick={onLogout}
             aria-label="Log out"
-            isIconOnly
+            className="rounded-lg p-1.5 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors"
           >
             <LogOut size={16} aria-hidden="true" />
-          </Button>
+          </button>
         </div>
       </div>
     </div>
@@ -200,15 +198,13 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
   return (
     <>
       {/* Mobile hamburger button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onPress={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 md:hidden"
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-50 md:hidden rounded-lg p-1.5 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors"
         aria-label="Open navigation"
       >
         <Menu size={20} aria-hidden="true" />
-      </Button>
+      </button>
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex h-screen flex-shrink-0">
@@ -224,15 +220,13 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
           />
           <div className="relative h-full animate-slide-in-left">
             {sidebarContent}
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={closeMobile}
-              className="absolute top-4 right-[-44px]"
+            <button
+              onClick={closeMobile}
+              className="absolute top-4 right-[-44px] rounded-lg p-1.5 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors"
               aria-label="Close navigation"
             >
               <X size={20} aria-hidden="true" />
-            </Button>
+            </button>
           </div>
         </div>
       )}

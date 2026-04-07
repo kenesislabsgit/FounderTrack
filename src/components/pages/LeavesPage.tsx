@@ -15,7 +15,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { LeaveRequest, UserProfile } from '../../types';
 import { ANNUAL_LEAVE_ALLOWANCE, ANNUAL_WFH_ALLOWANCE, DEFAULT_PAGE_SIZE } from '../../lib/constants';
 import { computeLeaveBalance } from '../../services/statsService';
-import { Button } from '@heroui/react';
+
 import { Plane, Plus, X, Check, Clock, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -158,13 +158,13 @@ export default function LeavesPage() {
           <h2 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Leave & WFH</h2>
           <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Manage leave and work-from-home requests.</p>
         </div>
-        <Button
-          variant="primary"
-          onPress={() => setShowForm(!showForm)}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
         >
           {showForm ? <X size={16} /> : <Plus size={16} />}
           {showForm ? 'Cancel' : 'New Request'}
-        </Button>
+        </button>
       </div>
 
       {/* Balance Cards */}
@@ -209,15 +209,15 @@ export default function LeavesPage() {
         <div className="rounded-2xl glass-elevated p-6 space-y-4 animate-scale-in">
           <div className="flex gap-3">
             {(['leave', 'wfh'] as const).map((t) => (
-              <Button
+              <button
                 key={t}
-                variant={formType === t ? 'primary' : 'ghost'}
-                size="sm"
-                onPress={() => setFormType(t)}
-                className="uppercase"
+                onClick={() => setFormType(t)}
+                className={formType === t
+                  ? "rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2 uppercase"
+                  : "rounded-lg px-3 py-1.5 text-xs text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors flex items-center gap-2 uppercase"}
               >
                 {t === 'wfh' ? 'WFH' : 'Leave'}
-              </Button>
+              </button>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -247,13 +247,13 @@ export default function LeavesPage() {
             rows={2}
             className="w-full rounded-xl inset-well px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 resize-none text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
           />
-          <Button
-            variant="primary"
-            onPress={handleSubmit}
-            isDisabled={submitting || !startDate || !endDate || !reason.trim()}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !startDate || !endDate || !reason.trim()}
+            className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
           >
             {submitting ? 'Submitting...' : 'Submit Request'}
-          </Button>
+          </button>
         </div>
       )}
 
@@ -284,20 +284,18 @@ export default function LeavesPage() {
               </div>
               {isAdmin && leave.status === 'pending' && (
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={() => handleApprove(leave)}
+                  <button
+                    onClick={() => handleApprove(leave)}
+                    className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
                   >
                     <Check size={14} />
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onPress={() => handleReject(leave)}
+                  </button>
+                  <button
+                    onClick={() => handleReject(leave)}
+                    className="rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(0,80%,75%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     <X size={14} />
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
@@ -307,12 +305,12 @@ export default function LeavesPage() {
 
       {hasMore && (
         <div className="flex justify-center">
-          <Button
-            variant="secondary"
-            onPress={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+          <button
+            onClick={() => setDisplayCount((prev) => prev + DEFAULT_PAGE_SIZE)}
+            className="rounded-xl bg-[hsl(var(--bg-elevated))] border border-[hsl(var(--border-default))] px-5 py-2.5 text-sm font-medium text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.05)] transition-colors flex items-center gap-2"
           >
             Load More ({leaves.length - displayCount} remaining)
-          </Button>
+          </button>
         </div>
       )}
     </div>

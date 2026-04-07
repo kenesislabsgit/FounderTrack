@@ -5,7 +5,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
 import { computeAvgShiftDuration, computeAvgTaskCompletionRate } from '../../services/statsService';
 import { AIService, AIAnalysisResult } from '../../services/aiService';
-import { Button } from '@heroui/react';
+
 import {
   BarChart3,
   Users,
@@ -119,14 +119,14 @@ export default function AnalyticsPage() {
           </h2>
           <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Overview of team performance and productivity metrics.</p>
         </div>
-        <Button
-          variant="primary"
-          onPress={handleRunAIAnalysis}
-          isDisabled={aiLoading || allUsers.length === 0}
+        <button
+          onClick={handleRunAIAnalysis}
+          disabled={aiLoading || allUsers.length === 0}
+          className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
         >
           {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           {aiLoading ? 'Analyzing...' : 'Run AI Analysis'}
-        </Button>
+        </button>
       </div>
 
       {/* AI Analysis Error */}

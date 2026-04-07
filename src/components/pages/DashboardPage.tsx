@@ -18,7 +18,7 @@ import { AttendanceRecord, DailyReport, TodoItem } from '../../types';
 import { SHIFT_DURATION_HOURS } from '../../lib/constants';
 import { computeShiftProgress } from '../../services/statsService';
 import { uploadCheckInPhoto } from '../../services/storageService';
-import { Button } from '@heroui/react';
+
 import {
   Clock,
   LogIn,
@@ -464,15 +464,14 @@ export default function DashboardPage() {
                   {checkingIn ? 'Checking In...' : 'Check In'}
                 </button>
               ) : isCheckedIn ? (
-                <Button
-                  variant="danger"
-                  onPress={handleCheckOut}
-                  isDisabled={checkingOut}
-                  className="flex-1"
+                <button
+                  onClick={handleCheckOut}
+                  disabled={checkingOut}
+                  className="flex-1 rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(0,80%,75%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {checkingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
                   {checkingOut ? 'Checking Out...' : 'Check Out'}
-                </Button>
+                </button>
               ) : (
                 <div className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--bg-elevated))] py-3 text-sm font-bold text-[hsl(var(--text-muted))]">
                   <CheckCircle2 size={16} />
@@ -533,14 +532,13 @@ export default function DashboardPage() {
                 placeholder="Add a task..."
                 className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
               />
-              <Button
-                variant="primary"
-                size="sm"
-                onPress={handleAddTask}
-                isDisabled={!newTask.trim()}
+              <button
+                onClick={handleAddTask}
+                disabled={!newTask.trim()}
+                className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
               >
                 <Plus size={16} />
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -558,13 +556,13 @@ export default function DashboardPage() {
                 placeholder="Paste your daily report URL..."
                 className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
               />
-              <Button
-                variant="primary"
-                onPress={handleSaveReportUrl}
-                isDisabled={!reportUrl.trim()}
+              <button
+                onClick={handleSaveReportUrl}
+                disabled={!reportUrl.trim()}
+                className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
               >
                 Save
-              </Button>
+              </button>
             </div>
             {todayReport?.reportUrl && (
               <a
