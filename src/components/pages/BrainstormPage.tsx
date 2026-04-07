@@ -16,7 +16,7 @@ import {
 import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { BrainstormIdea } from '../../types';
-import { Button, Card, CardContent, Chip, ChipLabel } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { Lightbulb, ThumbsUp, Plus, X, MessageSquare, CheckCircle2, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -183,53 +183,51 @@ export default function BrainstormPage() {
         {filteredIdeas.map((idea) => {
           const hasUpvoted = idea.upvotes?.includes(user?.uid || '');
           return (
-            <Card key={idea.id} className="glass rounded-2xl animate-slide-up-fade">
-              <CardContent className="p-6 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-3">
-                  <Chip className={`${categoryColors[idea.category]} rounded-full`}>
-                    <ChipLabel className="text-[10px] font-bold uppercase">{idea.category}</ChipLabel>
-                  </Chip>
-                  <div className="flex items-center gap-1 text-[hsl(var(--text-muted))]">
-                    {statusIcons[idea.status]}
-                    <span className="text-[10px] font-bold uppercase">{idea.status}</span>
-                  </div>
+            <div key={idea.id} className="glass rounded-2xl p-6 flex flex-col h-full animate-slide-up-fade">
+              <div className="flex items-start justify-between mb-3">
+                <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${categoryColors[idea.category]}`}>
+                  {idea.category}
+                </span>
+                <div className="flex items-center gap-1 text-[hsl(var(--text-muted))]">
+                  {statusIcons[idea.status]}
+                  <span className="text-[10px] font-bold uppercase">{idea.status}</span>
                 </div>
-                <h4 className="text-sm font-bold text-[hsl(var(--text-primary))] mb-1">{idea.title}</h4>
-                {idea.description && (
-                  <p className="text-xs text-[hsl(var(--text-muted))] leading-relaxed mb-4 flex-1">{idea.description}</p>
-                )}
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-[hsl(var(--border-subtle))]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[hsl(var(--text-muted))]">
-                      {idea.authorName} · {idea.createdAt instanceof Timestamp ? format(idea.createdAt.toDate(), 'MMM d') : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={hasUpvoted ? 'primary' : 'ghost'}
-                      size="sm"
-                      onPress={() => handleUpvote(idea)}
-                      className="flex items-center gap-1"
+              </div>
+              <h4 className="text-sm font-bold text-[hsl(var(--text-primary))] mb-1">{idea.title}</h4>
+              {idea.description && (
+                <p className="text-xs text-[hsl(var(--text-muted))] leading-relaxed mb-4 flex-1">{idea.description}</p>
+              )}
+              <div className="flex items-center justify-between mt-auto pt-4 border-t border-[hsl(var(--border-subtle))]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[hsl(var(--text-muted))]">
+                    {idea.authorName} · {idea.createdAt instanceof Timestamp ? format(idea.createdAt.toDate(), 'MMM d') : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={hasUpvoted ? 'primary' : 'ghost'}
+                    size="sm"
+                    onPress={() => handleUpvote(idea)}
+                    className="gap-1"
+                  >
+                    <ThumbsUp size={12} />
+                    {idea.upvotes?.length || 0}
+                  </Button>
+                  {(profile?.role === 'admin' || idea.uid === user?.uid) && (
+                    <select
+                      value={idea.status}
+                      onChange={(e) => handleStatusChange(idea, e.target.value as BrainstormIdea['status'])}
+                      className="rounded-lg inset-well px-2 py-1 text-[10px] font-bold text-[hsl(var(--text-secondary))] border-none focus:outline-none"
                     >
-                      <ThumbsUp size={12} />
-                      {idea.upvotes?.length || 0}
-                    </Button>
-                    {(profile?.role === 'admin' || idea.uid === user?.uid) && (
-                      <select
-                        value={idea.status}
-                        onChange={(e) => handleStatusChange(idea, e.target.value as BrainstormIdea['status'])}
-                        className="rounded-lg inset-well px-2 py-1 text-[10px] font-bold text-[hsl(var(--text-secondary))] border-none focus:outline-none"
-                      >
-                        <option value="open">Open</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                    )}
-                  </div>
+                      <option value="open">Open</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>

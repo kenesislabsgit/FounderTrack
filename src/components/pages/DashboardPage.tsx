@@ -18,7 +18,7 @@ import { AttendanceRecord, DailyReport, TodoItem } from '../../types';
 import { SHIFT_DURATION_HOURS } from '../../lib/constants';
 import { computeShiftProgress } from '../../services/statsService';
 import { uploadCheckInPhoto } from '../../services/storageService';
-import { Button, Card, CardContent, Skeleton } from '@heroui/react';
+import { Button } from '@heroui/react';
 import {
   Clock,
   LogIn,
@@ -291,42 +291,38 @@ export default function DashboardPage() {
     return (
       <div className="p-8 space-y-6">
         <div>
-          <Skeleton className="h-7 w-56 mb-2 rounded-lg" />
-          <Skeleton className="h-4 w-40 rounded-lg" />
+          <div className="skeleton h-7 w-56 mb-2 rounded-lg" />
+          <div className="skeleton h-4 w-40 rounded-lg" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="glass rounded-2xl">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-xl" />
-                    <div>
-                      <Skeleton className="h-4 w-28 mb-1 rounded-lg" />
-                      <Skeleton className="h-3 w-20 rounded-lg" />
-                    </div>
+            <div className="glass rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-10 w-10 rounded-xl" />
+                  <div>
+                    <div className="skeleton h-4 w-28 mb-1 rounded-lg" />
+                    <div className="skeleton h-3 w-20 rounded-lg" />
                   </div>
-                  <Skeleton className="h-6 w-20 rounded-full" />
                 </div>
-                <Skeleton className="h-3 w-full rounded-full mb-4" />
-                <Skeleton className="h-12 w-full rounded-xl" />
-              </CardContent>
-            </Card>
+                <div className="skeleton h-6 w-20 rounded-full" />
+              </div>
+              <div className="skeleton h-3 w-full rounded-full mb-4" />
+              <div className="skeleton h-12 w-full rounded-xl" />
+            </div>
           </div>
           <div className="space-y-6">
-            <Card className="glass rounded-2xl">
-              <CardContent className="p-6">
-                <Skeleton className="h-4 w-24 mb-4 rounded-lg" />
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex justify-between">
-                      <Skeleton className="h-3 w-20 rounded-lg" />
-                      <Skeleton className="h-3 w-10 rounded-lg" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="glass rounded-2xl p-6">
+              <div className="skeleton h-4 w-24 mb-4 rounded-lg" />
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-between">
+                    <div className="skeleton h-3 w-20 rounded-lg" />
+                    <div className="skeleton h-3 w-10 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -345,300 +341,287 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Shift Tracking Card */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="glass rounded-2xl animate-slide-up-fade">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500">
-                    <Clock size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Shift</h3>
-                    <p className="text-xs text-[hsl(var(--text-muted))]">{today}</p>
-                  </div>
+          <div className="glass rounded-2xl p-6 animate-slide-up-fade">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500">
+                  <Clock size={20} />
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
-                    isCheckedIn
-                      ? 'bg-green-100 text-green-700'
-                      : isCheckedOut
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-[hsl(var(--bg-elevated))] text-[hsl(var(--text-muted))]'
-                  }`}
-                >
-                  {isCheckedIn ? 'Active' : isCheckedOut ? 'Completed' : 'Not Started'}
-                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Shift</h3>
+                  <p className="text-xs text-[hsl(var(--text-muted))]">{today}</p>
+                </div>
               </div>
+              <span
+                className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
+                  isCheckedIn
+                    ? 'bg-green-100 text-green-700'
+                    : isCheckedOut
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-[hsl(var(--bg-elevated))] text-[hsl(var(--text-muted))]'
+                }`}
+              >
+                {isCheckedIn ? 'Active' : isCheckedOut ? 'Completed' : 'Not Started'}
+              </span>
+            </div>
 
-              {/* Shift Progress */}
-              <div className="mb-6">
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="text-[hsl(var(--text-muted))]">Shift Progress</span>
-                  <span className="font-bold text-[hsl(var(--text-primary))]">{shiftProgress.toFixed(0)}%</span>
-                </div>
-                <div className="h-3 w-full rounded-full inset-well overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] transition-all duration-500"
-                    style={{ width: `${shiftProgress}%` }}
-                  />
-                </div>
-                {todayRecord?.checkInTime && (
-                  <p className="text-[10px] text-[hsl(var(--text-muted))] mt-2">
-                    Checked in at{' '}
-                    {format(
-                      todayRecord.checkInTime instanceof Timestamp
-                        ? todayRecord.checkInTime.toDate()
-                        : new Date(todayRecord.checkInTime),
-                      'hh:mm a'
-                    )}
-                    {todayRecord.checkOutTime && (
-                      <>
-                        {' · Checked out at '}
-                        {format(
-                          todayRecord.checkOutTime instanceof Timestamp
-                            ? todayRecord.checkOutTime.toDate()
-                            : new Date(todayRecord.checkOutTime),
-                          'hh:mm a'
-                        )}
-                      </>
-                    )}
-                    {todayRecord.totalHours && ` · ${todayRecord.totalHours.toFixed(1)}h total`}
-                  </p>
-                )}
+            {/* Shift Progress */}
+            <div className="mb-6">
+              <div className="flex justify-between text-xs mb-2">
+                <span className="text-[hsl(var(--text-muted))]">Shift Progress</span>
+                <span className="font-bold text-[hsl(var(--text-primary))]">{shiftProgress.toFixed(0)}%</span>
               </div>
-
-              {/* Check-In Photo */}
-              {!todayRecord && (
-                <div className="mb-4">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoSelect}
-                    className="hidden"
-                    id="check-in-photo"
-                  />
-                  {photoPreview ? (
-                    <div className="relative inline-block">
-                      <img
-                        src={photoPreview}
-                        alt="Check-in preview"
-                        className="h-24 w-24 rounded-xl object-cover border border-[hsl(var(--border-subtle))]"
-                      />
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onPress={clearPhoto}
-                        className="absolute -top-2 -right-2 h-5 w-5 min-w-0 rounded-full p-0 flex items-center justify-center"
-                      >
-                        <X size={12} />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 rounded-xl border border-dashed border-[hsl(var(--border-default))] px-4 py-2.5 text-xs text-[hsl(var(--text-muted))] hover:border-[hsl(var(--accent))] hover:text-[hsl(var(--accent))] transition-colors"
-                    >
-                      <Camera size={14} />
-                      Add check-in photo
-                    </button>
+              <div className="h-3 w-full rounded-full inset-well overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] transition-all duration-500"
+                  style={{ width: `${shiftProgress}%` }}
+                />
+              </div>
+              {todayRecord?.checkInTime && (
+                <p className="text-[10px] text-[hsl(var(--text-muted))] mt-2">
+                  Checked in at{' '}
+                  {format(
+                    todayRecord.checkInTime instanceof Timestamp
+                      ? todayRecord.checkInTime.toDate()
+                      : new Date(todayRecord.checkInTime),
+                    'hh:mm a'
                   )}
-                </div>
+                  {todayRecord.checkOutTime && (
+                    <>
+                      {' · Checked out at '}
+                      {format(
+                        todayRecord.checkOutTime instanceof Timestamp
+                          ? todayRecord.checkOutTime.toDate()
+                          : new Date(todayRecord.checkOutTime),
+                        'hh:mm a'
+                      )}
+                    </>
+                  )}
+                  {todayRecord.totalHours && ` · ${todayRecord.totalHours.toFixed(1)}h total`}
+                </p>
               )}
+            </div>
 
-              {/* Display check-in photo */}
-              {todayRecord?.checkInPhoto && (
-                <div className="mb-4">
-                  <p className="text-[10px] text-[hsl(var(--text-muted))] mb-1">Check-in Photo</p>
-                  <img
-                    src={todayRecord.checkInPhoto}
-                    alt="Check-in photo"
-                    className="h-24 w-24 rounded-xl object-cover border border-[hsl(var(--border-subtle))]"
-                  />
-                </div>
-              )}
-
-              {/* Check In/Out Buttons */}
-              <div className="flex gap-3">
-                {!todayRecord ? (
-                  <Button
-                    variant="primary"
-                    onPress={handleCheckIn}
-                    isDisabled={checkingIn}
-                    className="flex-1 bg-gradient-to-b from-[hsl(145,70%,50%)] to-[hsl(145,70%,42%)] py-3 shadow-[inset_0_1px_0_0_hsla(145,80%,70%,0.35),0_2px_4px_rgba(0,0,0,0.25)]"
-                  >
-                    {checkingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                    {checkingIn ? 'Checking In...' : 'Check In'}
-                  </Button>
-                ) : isCheckedIn ? (
-                  <Button
-                    variant="danger"
-                    onPress={handleCheckOut}
-                    isDisabled={checkingOut}
-                    className="flex-1 py-3"
-                  >
-                    {checkingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
-                    {checkingOut ? 'Checking Out...' : 'Check Out'}
-                  </Button>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--bg-elevated))] py-3 text-sm font-bold text-[hsl(var(--text-muted))]">
-                    <CheckCircle2 size={16} />
-                    Shift Completed
+            {/* Check-In Photo */}
+            {!todayRecord && (
+              <div className="mb-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                  id="check-in-photo"
+                />
+                {photoPreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={photoPreview}
+                      alt="Check-in preview"
+                      className="h-24 w-24 rounded-xl object-cover border border-[hsl(var(--border-subtle))]"
+                    />
+                    <button
+                      onClick={clearPhoto}
+                      className="absolute -top-2 -right-2 h-5 w-5 min-w-0 rounded-full p-0 flex items-center justify-center rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] text-white text-xs"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 rounded-xl border border-dashed border-[hsl(var(--border-default))] px-4 py-2.5 text-xs text-[hsl(var(--text-muted))] hover:border-[hsl(var(--accent))] hover:text-[hsl(var(--accent))] transition-colors"
+                  >
+                    <Camera size={14} />
+                    Add check-in photo
+                  </button>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            )}
+
+            {/* Display check-in photo */}
+            {todayRecord?.checkInPhoto && (
+              <div className="mb-4">
+                <p className="text-[10px] text-[hsl(var(--text-muted))] mb-1">Check-in Photo</p>
+                <img
+                  src={todayRecord.checkInPhoto}
+                  alt="Check-in photo"
+                  className="h-24 w-24 rounded-xl object-cover border border-[hsl(var(--border-subtle))]"
+                />
+              </div>
+            )}
+
+            {/* Check In/Out Buttons */}
+            <div className="flex gap-3">
+              {!todayRecord ? (
+                <button
+                  onClick={handleCheckIn}
+                  disabled={checkingIn}
+                  className="flex-1 rounded-xl bg-gradient-to-b from-[hsl(145,70%,50%)] to-[hsl(145,70%,42%)] px-5 py-3 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(145,80%,70%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {checkingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+                  {checkingIn ? 'Checking In...' : 'Check In'}
+                </button>
+              ) : isCheckedIn ? (
+                <Button
+                  variant="danger"
+                  onPress={handleCheckOut}
+                  isDisabled={checkingOut}
+                  className="flex-1"
+                >
+                  {checkingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+                  {checkingOut ? 'Checking Out...' : 'Check Out'}
+                </Button>
+              ) : (
+                <div className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--bg-elevated))] py-3 text-sm font-bold text-[hsl(var(--text-muted))]">
+                  <CheckCircle2 size={16} />
+                  Shift Completed
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Todo List */}
-          <Card className="glass rounded-2xl animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Tasks</h3>
-                  <span className="text-xs text-[hsl(var(--text-muted))]">
-                    {completedCount}/{todoList.length}
-                  </span>
-                </div>
-                {todoList.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 rounded-full inset-well overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${taskProgress}%` }} />
-                    </div>
-                    <span className="text-[10px] font-bold text-[hsl(var(--text-muted))]">{taskProgress.toFixed(0)}%</span>
+          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Tasks</h3>
+                <span className="text-xs text-[hsl(var(--text-muted))]">
+                  {completedCount}/{todoList.length}
+                </span>
+              </div>
+              {todoList.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-20 rounded-full inset-well overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${taskProgress}%` }} />
                   </div>
-                )}
-              </div>
+                  <span className="text-[10px] font-bold text-[hsl(var(--text-muted))]">{taskProgress.toFixed(0)}%</span>
+                </div>
+              )}
+            </div>
 
-              <div className="space-y-2 mb-4">
-                {todoList.map((todo, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleToggleTask(idx)}
-                    className="flex items-center gap-3 w-full text-left p-2 rounded-lg hover:bg-[hsla(var(--accent),0.05)] transition-colors"
-                  >
-                    {todo.completed ? (
-                      <CheckCircle2 size={18} className="text-green-500 shrink-0" />
-                    ) : (
-                      <Circle size={18} className="text-[hsl(var(--text-muted))] shrink-0" />
-                    )}
-                    <span
-                      className={`text-sm ${
-                        todo.completed ? 'text-[hsl(var(--text-muted))] line-through' : 'text-[hsl(var(--text-secondary))]'
-                      }`}
-                    >
-                      {todo.task}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                  placeholder="Add a task..."
-                  className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onPress={handleAddTask}
-                  isDisabled={!newTask.trim()}
+            <div className="space-y-2 mb-4">
+              {todoList.map((todo, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleToggleTask(idx)}
+                  className="flex items-center gap-3 w-full text-left p-2 rounded-lg hover:bg-[hsla(var(--accent),0.05)] transition-colors"
                 >
-                  <Plus size={16} />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  {todo.completed ? (
+                    <CheckCircle2 size={18} className="text-green-500 shrink-0" />
+                  ) : (
+                    <Circle size={18} className="text-[hsl(var(--text-muted))] shrink-0" />
+                  )}
+                  <span
+                    className={`text-sm ${
+                      todo.completed ? 'text-[hsl(var(--text-muted))] line-through' : 'text-[hsl(var(--text-secondary))]'
+                    }`}
+                  >
+                    {todo.task}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                placeholder="Add a task..."
+                className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={handleAddTask}
+                isDisabled={!newTask.trim()}
+              >
+                <Plus size={16} />
+              </Button>
+            </div>
+          </div>
 
           {/* Daily Report Link */}
-          <Card className="glass rounded-2xl animate-slide-up-fade" style={{ animationDelay: '100ms' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <FileText size={18} className="text-[hsl(var(--text-muted))]" />
-                <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Daily Report</h3>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={reportUrl || todayReport?.reportUrl || ''}
-                  onChange={(e) => setReportUrl(e.target.value)}
-                  placeholder="Paste your daily report URL..."
-                  className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
-                />
-                <Button
-                  variant="primary"
-                  onPress={handleSaveReportUrl}
-                  isDisabled={!reportUrl.trim()}
-                >
-                  Save
-                </Button>
-              </div>
-              {todayReport?.reportUrl && (
-                <a
-                  href={todayReport.reportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-2 text-xs text-[hsl(var(--accent))] hover:underline"
-                >
-                  View submitted report →
-                </a>
-              )}
-            </CardContent>
-          </Card>
+          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <FileText size={18} className="text-[hsl(var(--text-muted))]" />
+              <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Daily Report</h3>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={reportUrl || todayReport?.reportUrl || ''}
+                onChange={(e) => setReportUrl(e.target.value)}
+                placeholder="Paste your daily report URL..."
+                className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
+              />
+              <Button
+                variant="primary"
+                onPress={handleSaveReportUrl}
+                isDisabled={!reportUrl.trim()}
+              >
+                Save
+              </Button>
+            </div>
+            {todayReport?.reportUrl && (
+              <a
+                href={todayReport.reportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-2 text-xs text-[hsl(var(--accent))] hover:underline"
+              >
+                View submitted report →
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Right Sidebar */}
         <div className="space-y-6">
           {/* Quick Stats */}
-          <Card className="glass rounded-2xl animate-slide-up-fade">
-            <CardContent className="p-6">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-[hsl(var(--text-muted))] mb-4">This Week</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-xs text-[hsl(var(--text-muted))]">Days Worked</span>
-                  <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{recentRecords.filter((r) => r.checkOutTime).length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-[hsl(var(--text-muted))]">Total Hours</span>
-                  <span className="text-sm font-bold text-[hsl(var(--text-primary))]">
-                    {recentRecords.reduce((acc, r) => acc + (r.totalHours || 0), 0).toFixed(1)}h
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-[hsl(var(--text-muted))]">Tasks Done</span>
-                  <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{completedCount}</span>
-                </div>
+          <div className="glass rounded-2xl p-6 animate-slide-up-fade">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-[hsl(var(--text-muted))] mb-4">Last 7 Days</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-xs text-[hsl(var(--text-muted))]">Days Worked</span>
+                <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{recentRecords.filter((r) => r.checkOutTime).length}</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex justify-between">
+                <span className="text-xs text-[hsl(var(--text-muted))]">Total Hours</span>
+                <span className="text-sm font-bold text-[hsl(var(--text-primary))]">
+                  {recentRecords.reduce((acc, r) => acc + (r.totalHours || 0), 0).toFixed(1)}h
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-[hsl(var(--text-muted))]">Tasks Done</span>
+                <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{completedCount}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Recent Activity */}
-          <Card className="glass rounded-2xl animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
-            <CardContent className="p-6">
-              <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest mb-4">Recent Shifts</h3>
-              <div className="space-y-3">
-                {recentRecords.slice(0, 5).map((record) => (
-                  <div key={record.id} className="flex items-center justify-between py-2 border-b border-[hsl(var(--border-subtle))] last:border-0">
-                    <div>
-                      <p className="text-xs font-medium text-[hsl(var(--text-primary))]">{record.date}</p>
-                      <p className="text-[10px] text-[hsl(var(--text-muted))] capitalize">{record.status}</p>
-                    </div>
-                    <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">
-                      {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '—'}
-                    </span>
+          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
+            <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest mb-4">Recent Shifts</h3>
+            <div className="space-y-3">
+              {recentRecords.slice(0, 5).map((record) => (
+                <div key={record.id} className="flex items-center justify-between py-2 border-b border-[hsl(var(--border-subtle))] last:border-0">
+                  <div>
+                    <p className="text-xs font-medium text-[hsl(var(--text-primary))]">{record.date}</p>
+                    <p className="text-[10px] text-[hsl(var(--text-muted))] capitalize">{record.status}</p>
                   </div>
-                ))}
-                {recentRecords.length === 0 && (
-                  <p className="text-xs text-[hsl(var(--text-muted))] italic">No recent shifts</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <span className="text-xs font-bold text-[hsl(var(--text-secondary))]">
+                    {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '—'}
+                  </span>
+                </div>
+              ))}
+              {recentRecords.length === 0 && (
+                <p className="text-xs text-[hsl(var(--text-muted))] italic">No recent shifts</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

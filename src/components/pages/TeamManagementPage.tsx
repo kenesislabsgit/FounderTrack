@@ -3,15 +3,7 @@ import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { UserProfile } from '../../types';
-import {
-  Button,
-  Skeleton,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Chip,
-  ChipLabel,
-} from '@heroui/react';
+import { Button } from '@heroui/react';
 import { Users, Shield, Edit2, Check, X } from 'lucide-react';
 
 export default function TeamManagementPage() {
@@ -58,10 +50,10 @@ export default function TeamManagementPage() {
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="rounded-xl glass p-4">
               <div className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="skeleton h-10 w-10 rounded-full" />
                 <div className="flex-1">
-                  <Skeleton className="h-4 w-1/4 mb-2 rounded-lg" />
-                  <Skeleton className="h-3 w-1/3 rounded-lg" />
+                  <div className="skeleton h-4 w-1/4 mb-2 rounded-lg" />
+                  <div className="skeleton h-3 w-1/3 rounded-lg" />
                 </div>
               </div>
             </div>
@@ -112,10 +104,13 @@ export default function TeamManagementPage() {
               <tr key={u.uid} className="border-b border-[hsl(var(--border-subtle))] hover:bg-[hsla(var(--accent),0.05)] transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={u.photoURL} alt={u.name} className="object-cover" referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-xs font-bold">{u.name?.[0] || '?'}</AvatarFallback>
-                    </Avatar>
+                    <div className="h-9 w-9 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center text-xs font-bold overflow-hidden border border-[hsl(var(--border-default))]">
+                      {u.photoURL ? (
+                        <img src={u.photoURL} alt={u.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        u.name?.[0] || '?'
+                      )}
+                    </div>
                     <span className="text-sm font-medium text-[hsl(var(--text-primary))]">{u.name}</span>
                   </div>
                 </td>
@@ -133,9 +128,9 @@ export default function TeamManagementPage() {
                       <option value="intern">Intern</option>
                     </select>
                   ) : (
-                    <Chip className={`${roleColors[u.role]} rounded-full`}>
-                      <ChipLabel className="text-[10px] font-bold uppercase">{u.role}</ChipLabel>
-                    </Chip>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${roleColors[u.role]}`}>
+                      {u.role}
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -145,7 +140,6 @@ export default function TeamManagementPage() {
                         variant="primary"
                         size="sm"
                         onPress={() => handleSaveRole(u.uid)}
-                        className="bg-gradient-to-b from-[hsl(145,70%,50%)] to-[hsl(145,70%,42%)] p-1.5"
                       >
                         <Check size={14} />
                       </Button>

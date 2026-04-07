@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { Button, Separator } from '@heroui/react';
 import {
   LayoutDashboard,
   Clock,
@@ -19,8 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../hooks/useTheme';
-import { StatusDot } from './ui/StatusDot';
-import { Avatar, AvatarFallback, Button, Separator } from '@heroui/react';
+
 
 interface SidebarProps {
   user: any;
@@ -149,16 +149,14 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
       {/* Bottom section */}
       <div className="border-t border-[hsl(var(--border-subtle))] px-3 py-3 space-y-3">
         {/* Theme toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onPress={toggleTheme}
+        <button
+          onClick={toggleTheme}
           className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors"
           aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
           <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-        </Button>
+        </button>
 
         {/* Settings */}
         <NavLink
@@ -173,14 +171,9 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
         {/* User section */}
         <div className="flex items-center gap-3 rounded-lg px-3 py-2">
           <div className="relative">
-            <Avatar className="h-9 w-9 border border-[hsl(var(--border-default))]">
-              <AvatarFallback className="bg-[hsl(var(--bg-elevated))] text-xs font-bold text-[hsl(var(--text-primary))]">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <span className="absolute -bottom-0.5 -right-0.5">
-              <StatusDot state="active" size="sm" />
-            </span>
+            <div className="h-9 w-9 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center text-xs font-bold overflow-hidden border border-[hsl(var(--border-default))] text-[hsl(var(--text-primary))]">
+              {initials}
+            </div>
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="truncate text-sm font-medium text-[hsl(var(--text-primary))]">
@@ -194,8 +187,8 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
             variant="ghost"
             size="sm"
             onPress={onLogout}
-            className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors p-1 h-auto min-w-0"
             aria-label="Log out"
+            isIconOnly
           >
             <LogOut size={16} aria-hidden="true" />
           </Button>
@@ -211,10 +204,10 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
         variant="ghost"
         size="sm"
         onPress={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 rounded-lg bg-[hsl(var(--bg-surface))] p-2 shadow-md md:hidden border border-[hsl(var(--border-default))]"
+        className="fixed top-4 left-4 z-50 md:hidden"
         aria-label="Open navigation"
       >
-        <Menu size={20} className="text-[hsl(var(--text-primary))]" aria-hidden="true" />
+        <Menu size={20} aria-hidden="true" />
       </Button>
 
       {/* Desktop sidebar */}
@@ -235,10 +228,10 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
               variant="ghost"
               size="sm"
               onPress={closeMobile}
-              className="absolute top-4 right-[-44px] rounded-lg bg-[hsl(var(--bg-surface))] p-2 shadow-md border border-[hsl(var(--border-default))]"
+              className="absolute top-4 right-[-44px]"
               aria-label="Close navigation"
             >
-              <X size={20} className="text-[hsl(var(--text-primary))]" aria-hidden="true" />
+              <X size={20} aria-hidden="true" />
             </Button>
           </div>
         </div>

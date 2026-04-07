@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
 import { summarizeForAI } from '../../lib/summarize';
-import { Button, Spinner } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { Bot, Send, Trash2 } from 'lucide-react';
 
 interface ChatMessage {
@@ -123,7 +123,6 @@ export default function BotPage() {
                   variant="ghost"
                   size="sm"
                   onPress={() => setInput(suggestion)}
-                  className="border border-[hsl(var(--border-subtle))]"
                 >
                   {suggestion}
                 </Button>
@@ -149,7 +148,7 @@ export default function BotPage() {
         {loading && (
           <div className="flex justify-start">
             <div className="rounded-2xl glass px-5 py-3">
-              <Spinner size="sm" />
+              <div className="h-5 w-5 animate-spin rounded-full border-4 border-[hsl(var(--accent))] border-t-transparent" />
             </div>
           </div>
         )}
@@ -171,7 +170,6 @@ export default function BotPage() {
           variant="primary"
           onPress={handleSend}
           isDisabled={loading || !input.trim()}
-          className="px-5 py-3"
         >
           <Send size={18} />
         </Button>

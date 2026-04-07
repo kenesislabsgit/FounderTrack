@@ -12,7 +12,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile } from '../../types';
 import { EXPECTED_START_HOUR, DEFAULT_PAGE_SIZE } from '../../lib/constants';
 import { computeAvgShiftDuration, computeOnTimePercentage } from '../../services/statsService';
-import { Button, Skeleton, Chip, ChipLabel } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { Clock, TrendingUp, Users, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -69,17 +69,17 @@ export default function AttendancePage() {
     return (
       <div className="p-8 space-y-6">
         <div>
-          <Skeleton className="h-7 w-48 mb-2 rounded-lg" />
-          <Skeleton className="h-4 w-72 rounded-lg" />
+          <div className="skeleton h-7 w-48 mb-2 rounded-lg" />
+          <div className="skeleton h-4 w-72 rounded-lg" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="rounded-2xl glass p-5">
               <div className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="skeleton h-10 w-10 rounded-xl" />
                 <div className="flex-1">
-                  <Skeleton className="h-3 w-20 mb-2 rounded-lg" />
-                  <Skeleton className="h-5 w-12 rounded-lg" />
+                  <div className="skeleton h-3 w-20 mb-2 rounded-lg" />
+                  <div className="skeleton h-5 w-12 rounded-lg" />
                 </div>
               </div>
             </div>
@@ -88,10 +88,10 @@ export default function AttendancePage() {
         <div className="rounded-2xl glass overflow-hidden">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-center gap-4 px-6 py-4 border-b border-[hsl(var(--border-subtle))]">
-              <Skeleton className="h-4 w-24 rounded-lg" />
-              <Skeleton className="h-4 w-20 rounded-lg" />
-              <Skeleton className="h-4 w-20 rounded-lg" />
-              <Skeleton className="h-4 w-16 rounded-lg" />
+              <div className="skeleton h-4 w-24 rounded-lg" />
+              <div className="skeleton h-4 w-20 rounded-lg" />
+              <div className="skeleton h-4 w-20 rounded-lg" />
+              <div className="skeleton h-4 w-16 rounded-lg" />
             </div>
           ))}
         </div>
@@ -184,9 +184,9 @@ export default function AttendancePage() {
                   {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '—'}
                 </td>
                 <td className="px-6 py-4">
-                  <Chip className={`${statusChipClass[record.status]} rounded-full`}>
-                    <ChipLabel className="text-[10px] font-bold uppercase">{record.status}</ChipLabel>
-                  </Chip>
+                  <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${statusChipClass[record.status]}`}>
+                    {record.status}
+                  </span>
                 </td>
               </tr>
             ))}

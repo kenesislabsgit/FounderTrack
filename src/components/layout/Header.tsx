@@ -1,6 +1,4 @@
 import { useLocation } from 'react-router-dom';
-import { Bell } from 'lucide-react';
-import { Button, Tooltip, TooltipTrigger, TooltipContent } from '@heroui/react';
 
 /**
  * Route-to-title mapping.
@@ -29,19 +27,6 @@ export function Header() {
       <h1 className="text-xl font-bold text-[hsl(var(--text-primary))]">
         {title}
       </h1>
-      <Tooltip>
-        <TooltipTrigger>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="relative rounded-lg p-2 text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] transition-colors"
-            aria-label="Notifications"
-          >
-            <Bell size={20} aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Notifications</TooltipContent>
-      </Tooltip>
     </header>
   );
 }

@@ -15,36 +15,6 @@ import {
 import { auth, db } from '../firebase';
 import { UserProfile } from '../types';
 
-// --- Mock Auth ---
-const MOCK_AUTH_ENABLED = import.meta.env.VITE_MOCK_AUTH === 'true';
-
-const MOCK_USER = {
-  uid: 'mock-uid-001',
-  email: 'admin@kenesis.dev',
-  displayName: 'Mock Admin',
-  photoURL: null,
-  emailVerified: true,
-  isAnonymous: false,
-  tenantId: null,
-  providerData: [],
-  metadata: {},
-  phoneNumber: null,
-  providerId: 'google.com',
-  refreshToken: '',
-  delete: async () => {},
-  getIdToken: async () => 'mock-token',
-  getIdTokenResult: async () => ({} as any),
-  reload: async () => {},
-  toJSON: () => ({}),
-} as unknown as FirebaseUser;
-
-const MOCK_PROFILE: UserProfile = {
-  uid: 'mock-uid-001',
-  name: 'Mock Admin',
-  email: 'admin@kenesis.dev',
-  role: 'admin',
-};
-
 export interface UseAuthReturn {
   user: FirebaseUser | null;
   profile: UserProfile | null;
@@ -63,13 +33,6 @@ export function useAuth(): UseAuthReturn {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
 
   useEffect(() => {
-    if (MOCK_AUTH_ENABLED) {
-      setUser(MOCK_USER);
-      setProfile(MOCK_PROFILE);
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -96,12 +59,10 @@ export function useAuth(): UseAuthReturn {
               const sentinelDoc = await transaction.get(sentinelRef);
 
               if (!sentinelDoc.exists()) {
-                // No admin yet — claim it atomically
                 transaction.set(sentinelRef, { uid: firebaseUser.uid, assignedAt: new Date() });
                 transaction.set(doc(db, 'users', firebaseUser.uid), firstProfile);
                 return 'admin-assigned';
               } else {
-                // Another user already claimed admin — fall back to role selection
                 return 'not-admin';
               }
             });
@@ -127,11 +88,6 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   const login = useCallback(async () => {
-    if (MOCK_AUTH_ENABLED) {
-      setUser(MOCK_USER);
-      setProfile(MOCK_PROFILE);
-      return;
-    }
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
@@ -142,11 +98,6 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   const logout = useCallback(() => {
-    if (MOCK_AUTH_ENABLED) {
-      setUser(null);
-      setProfile(null);
-      return;
-    }
     signOut(auth);
   }, []);
 

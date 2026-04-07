@@ -4,7 +4,8 @@ import { db } from '../../firebase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
 import { computeAvgShiftDuration, computeAvgTaskCompletionRate } from '../../services/statsService';
-import { Skeleton, Avatar, AvatarImage, AvatarFallback, Chip, ChipLabel } from '@heroui/react';
+import { AIService, AIAnalysisResult } from '../../services/aiService';
+import { Button } from '@heroui/react';
 import {
   BarChart3,
   Users,
@@ -12,6 +13,9 @@ import {
   TrendingUp,
   CheckCircle2,
   Award,
+  Sparkles,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
@@ -20,6 +24,9 @@ export default function AnalyticsPage() {
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
   const [allReports, setAllReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     let loaded = 0;
@@ -73,6 +80,19 @@ export default function AnalyticsPage() {
     };
   }).sort((a, b) => b.totalHours - a.totalHours);
 
+  const handleRunAIAnalysis = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const result = await AIService.analyzePerformance(allUsers, allAttendance, allReports);
+      setAiResult(result);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI analysis failed. The AI proxy endpoint may not be configured yet.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -80,8 +100,8 @@ export default function AnalyticsPage() {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="rounded-2xl glass p-5">
-              <Skeleton className="h-4 w-1/2 mb-3 rounded-lg" />
-              <Skeleton className="h-8 w-1/3 rounded-lg" />
+              <div className="skeleton h-4 w-1/2 mb-3 rounded-lg" />
+              <div className="skeleton h-8 w-1/3 rounded-lg" />
             </div>
           ))}
         </div>
@@ -91,13 +111,57 @@ export default function AnalyticsPage() {
 
   return (
     <div className="p-8 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-[hsl(var(--text-primary))] flex items-center gap-3">
-          <BarChart3 size={24} />
-          Team Analytics
-        </h2>
-        <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Overview of team performance and productivity metrics.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-[hsl(var(--text-primary))] flex items-center gap-3">
+            <BarChart3 size={24} />
+            Team Analytics
+          </h2>
+          <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Overview of team performance and productivity metrics.</p>
+        </div>
+        <Button
+          variant="primary"
+          onPress={handleRunAIAnalysis}
+          isDisabled={aiLoading || allUsers.length === 0}
+        >
+          {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          {aiLoading ? 'Analyzing...' : 'Run AI Analysis'}
+        </Button>
       </div>
+
+      {/* AI Analysis Error */}
+      {aiError && (
+        <div className="rounded-2xl glass p-5 border border-red-200 bg-red-50/50 animate-slide-up-fade">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertCircle size={18} />
+            <p className="text-sm font-medium">{aiError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* AI Analysis Results */}
+      {aiResult && (
+        <div className="rounded-2xl glass p-6 animate-slide-up-fade space-y-4">
+          <div className="flex items-center gap-3">
+            <Sparkles size={18} className="text-[hsl(var(--accent))]" />
+            <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">AI Analysis</h3>
+          </div>
+          {aiResult.topPerformer && (
+            <p className="text-sm text-[hsl(var(--text-secondary))]">
+              <span className="font-bold text-[hsl(var(--text-primary))]">Top Performer:</span> {aiResult.topPerformer}
+            </p>
+          )}
+          {aiResult.summary && (
+            <p className="text-sm text-[hsl(var(--text-secondary))] leading-relaxed">{aiResult.summary}</p>
+          )}
+          {aiResult.insights && (
+            <div className="rounded-xl inset-well p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--text-muted))] mb-2">Insights</p>
+              <p className="text-sm text-[hsl(var(--text-secondary))] leading-relaxed whitespace-pre-wrap">{aiResult.insights}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -186,10 +250,13 @@ export default function AnalyticsPage() {
                 </td>
                 <td className="px-6 py-3">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={u.photoURL} alt={u.name} className="object-cover" referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-xs font-bold">{u.name?.[0] || '?'}</AvatarFallback>
-                    </Avatar>
+                    <div className="h-8 w-8 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center text-xs font-bold overflow-hidden border border-[hsl(var(--border-default))]">
+                      {u.photoURL ? (
+                        <img src={u.photoURL} alt={u.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        u.name?.[0] || '?'
+                      )}
+                    </div>
                     <span className="text-sm font-medium text-[hsl(var(--text-primary))]">{u.name}</span>
                   </div>
                 </td>
