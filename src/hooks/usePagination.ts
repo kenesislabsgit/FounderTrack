@@ -1,22 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  QueryConstraint,
-  QueryDocumentSnapshot,
-  DocumentData,
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../lib/supabase';
 
 export function usePagination<T>(
-  collectionPath: string,
+  tableName: string,
   pageSize: number,
   orderByField: string,
-  constraints?: QueryConstraint[]
+  filterColumn?: string,
+  filterValue?: any
 ): {
   items: T[];
   loading: boolean;
@@ -26,40 +16,31 @@ export function usePagination<T>(
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const initialLoadDone = useRef(false);
+  const pageRef = useRef(0);
 
-  const fetchPage = useCallback(async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+  const fetchPage = useCallback(async (page: number) => {
     setLoading(true);
     try {
-      const baseConstraints: QueryConstraint[] = [
-        ...(constraints ?? []),
-        orderBy(orderByField),
-        limit(pageSize),
-      ];
+      let query = supabase
+        .from(tableName)
+        .select('*')
+        .order(orderByField, { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (cursor) {
-        baseConstraints.push(startAfter(cursor));
+      if (filterColumn && filterValue !== undefined) {
+        query = query.eq(filterColumn, filterValue);
       }
 
-      const q = query(collection(db, collectionPath), ...baseConstraints);
-      const snapshot = await getDocs(q);
+      const { data, error } = await query;
+      if (error) throw error;
 
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[];
-
-      if (snapshot.docs.length > 0) {
-        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
-      }
-
-      setHasMore(snapshot.docs.length === pageSize);
-
-      if (cursor) {
-        setItems((prev) => [...prev, ...docs]);
-      } else {
-        setItems(docs);
+      if (data) {
+        setHasMore(data.length === pageSize);
+        if (page === 0) {
+          setItems(data as unknown as T[]);
+        } else {
+          setItems((prev) => [...prev, ...(data as unknown as T[])]);
+        }
       }
     } catch (error) {
       console.error('Pagination fetch error:', error);
@@ -67,18 +48,17 @@ export function usePagination<T>(
     } finally {
       setLoading(false);
     }
-  }, [collectionPath, pageSize, orderByField, constraints]);
+  }, [tableName, pageSize, orderByField, filterColumn, filterValue]);
 
-  // Load first page on mount or when query params change
   useEffect(() => {
-    lastDocRef.current = null;
-    initialLoadDone.current = true;
-    fetchPage(null);
+    pageRef.current = 0;
+    fetchPage(0);
   }, [fetchPage]);
 
   const loadMore = useCallback(() => {
-    if (!loading && hasMore && lastDocRef.current) {
-      fetchPage(lastDocRef.current);
+    if (!loading && hasMore) {
+      pageRef.current += 1;
+      fetchPage(pageRef.current);
     }
   }, [loading, hasMore, fetchPage]);
 

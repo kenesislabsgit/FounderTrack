@@ -1,20 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { LeaveRequest, UserProfile } from '../../types';
 import { ANNUAL_LEAVE_ALLOWANCE, ANNUAL_WFH_ALLOWANCE, DEFAULT_PAGE_SIZE } from '../../lib/constants';
 import { computeLeaveBalance } from '../../services/statsService';
+import { mapUserDbToProfile } from '../../services/dataService';
 
 import { Plane, Plus, X, Check, Clock, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -37,22 +27,40 @@ export default function LeavesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = isAdmin
-      ? query(collection(db, 'leaveRequests'), orderBy('startDate', 'desc'))
-      : query(collection(db, 'leaveRequests'), where('uid', '==', user.uid), orderBy('startDate', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLeaves(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as LeaveRequest)));
-      setLoading(false);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'leave_requests',
+      {
+        filters: isAdmin ? [] : [{ column: 'uid', value: user.uid }],
+        orderBy: { column: 'start_date', ascending: false },
+      },
+      (data) => {
+        setLeaves(
+          data.map((l) => ({
+            id: l.id,
+            uid: l.uid,
+            startDate: l.start_date,
+            endDate: l.end_date,
+            reason: l.reason,
+            type: l.type,
+            status: l.status,
+          }))
+        );
+        setLoading(false);
+      }
+    );
+    return unsubscribe;
   }, [user, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-      setAllUsers(snap.docs.map((d) => d.data() as UserProfile));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'users',
+      {},
+      (data) => {
+        setAllUsers(data.map(mapUserDbToProfile));
+      }
+    );
+    return unsubscribe;
   }, [isAdmin]);
 
   const myLeaves = leaves.filter((l) => l.uid === user?.uid);
@@ -70,10 +78,10 @@ export default function LeavesPage() {
     if (!user || !profile || !startDate || !endDate || !reason.trim()) return;
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'leaveRequests'), {
+      await supabase.from('leave_requests').insert({
         uid: user.uid,
-        startDate,
-        endDate,
+        start_date: startDate,
+        end_date: endDate,
         reason: reason.trim(),
         type: formType,
         status: 'pending',
@@ -92,7 +100,10 @@ export default function LeavesPage() {
   const handleApprove = async (leave: LeaveRequest) => {
     if (!leave.id) return;
     try {
-      await updateDoc(doc(db, 'leaveRequests', leave.id), { status: 'approved' });
+      await supabase
+        .from('leave_requests')
+        .update({ status: 'approved' })
+        .eq('id', leave.id);
     } catch (err) {
       console.error('Failed to approve:', err);
     }
@@ -101,7 +112,10 @@ export default function LeavesPage() {
   const handleReject = async (leave: LeaveRequest) => {
     if (!leave.id) return;
     try {
-      await updateDoc(doc(db, 'leaveRequests', leave.id), { status: 'rejected' });
+      await supabase
+        .from('leave_requests')
+        .update({ status: 'rejected' })
+        .eq('id', leave.id);
     } catch (err) {
       console.error('Failed to reject:', err);
     }

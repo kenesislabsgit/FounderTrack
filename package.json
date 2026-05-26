@@ -8,20 +8,21 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "export:firebase": "node scripts/export-firebase-data.mjs",
+    "migrate:supabase": "node scripts/migrate-firebase-to-supabase.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.48.0",
     "@heroui/react": "^3.0.2",
     "@heroui/styles": "^3.0.2",
+    "@supabase/supabase-js": "^2.106.2",
     "@tailwindcss/vite": "^4.1.14",
     "@vercel/node": "^5.7.0",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
-    "firebase": "^12.11.0",
-    "firebase-admin": "^13.7.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.0",
@@ -34,13 +35,11 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "fast-check": "^4.6.0",
-    "firebase-tools": "^15.13.0",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

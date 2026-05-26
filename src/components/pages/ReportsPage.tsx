@@ -1,19 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { DailyReport, UserProfile } from '../../types';
 import { DEFAULT_PAGE_SIZE } from '../../lib/constants';
+import { mapReportDbToRecord, mapUserDbToProfile } from '../../services/dataService';
 
 import { FileText, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
-import { format } from 'date-fns';
 
 export default function ReportsPage() {
   const { user, profile } = useAuthContext();
@@ -26,22 +18,30 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = isAdmin
-      ? query(collection(db, 'dailyReports'), orderBy('date', 'desc'))
-      : query(collection(db, 'dailyReports'), where('uid', '==', user.uid), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setReports(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport)));
-      setLoading(false);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'daily_reports',
+      {
+        filters: isAdmin ? [] : [{ column: 'uid', value: user.uid }],
+        orderBy: { column: 'date', ascending: false },
+      },
+      (data) => {
+        setReports(data.map(mapReportDbToRecord));
+        setLoading(false);
+      }
+    );
+    return unsubscribe;
   }, [user, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      setAllUsers(snapshot.docs.map((d) => d.data() as UserProfile));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'users',
+      {},
+      (data) => {
+        setAllUsers(data.map(mapUserDbToProfile));
+      }
+    );
+    return unsubscribe;
   }, [isAdmin]);
 
   const getUserName = (uid: string) => {
@@ -98,7 +98,7 @@ export default function ReportsPage() {
             const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
             return (
-              <div key={report.id} className="glass rounded-2xl p-6 animate-slide-up-fade">
+              <div key={report.id} className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-bold text-[hsl(var(--text-muted))] uppercase tracking-widest">
                     {report.date}
@@ -131,24 +131,39 @@ export default function ReportsPage() {
                   <p className="text-xs text-[hsl(var(--text-muted))] italic mb-4">No tasks recorded</p>
                 )}
 
-                <div className="flex items-center justify-between pt-3 border-t border-[hsl(var(--border-subtle))]">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-16 rounded-full inset-well overflow-hidden">
+                {/* If direct text report, render it inline inside a premium sunken well */}
+                {report.reportUrl && !/^(https?:\/\/)/i.test(report.reportUrl) && (
+                  <div className="rounded-xl skeuo-well p-3.5 mb-4 text-xs text-[hsl(var(--text-secondary))] leading-relaxed border border-[hsl(var(--border-subtle))]/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] font-sans">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-[hsl(var(--text-muted))] mb-1.5 border-b border-[hsl(var(--border-subtle))]/20 pb-1">Report Entry Log</p>
+                    {/<\/?[a-z][\s\S]*>/i.test(report.reportUrl) ? (
                       <div
-                        className="h-full bg-green-500 rounded-full"
+                        className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed rich-report-content"
+                        dangerouslySetInnerHTML={{ __html: report.reportUrl }}
+                      />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{report.reportUrl}</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-3 border-t border-[hsl(var(--border-subtle))]/40">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-16 rounded-full skeuo-well overflow-hidden p-[1px]">
+                      <div
+                        className="h-full skeuo-progress-bar-success rounded-full"
                         style={{ width: `${completionRate}%` }}
                       />
                     </div>
                     <span className="text-[10px] font-bold text-[hsl(var(--text-muted))]">
-                      {completedTasks}/{totalTasks}
+                      {completedTasks}/{totalTasks} Tasks
                     </span>
                   </div>
-                  {report.reportUrl && (
+                  {report.reportUrl && /^(https?:\/\/)/i.test(report.reportUrl) && (
                     <a
                       href={report.reportUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[hsl(var(--accent))] hover:opacity-80"
+                      className="text-[hsl(var(--accent))] hover:opacity-80 active:scale-95"
                     >
                       <ExternalLink size={14} />
                     </a>

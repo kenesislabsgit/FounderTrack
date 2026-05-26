@@ -1,17 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
-import * as admin from 'firebase-admin';
+import { createClient } from '@supabase/supabase-js';
 
-// Initialize Firebase Admin SDK (singleton)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-  });
-}
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-async function verifyToken(req: VercelRequest): Promise<admin.auth.DecodedIdToken> {
+async function verifyToken(req: VercelRequest): Promise<any> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('UNAUTHORIZED');
@@ -20,7 +18,13 @@ async function verifyToken(req: VercelRequest): Promise<admin.auth.DecodedIdToke
   if (!idToken) {
     throw new Error('UNAUTHORIZED');
   }
-  return admin.auth().verifyIdToken(idToken);
+
+  // Verify the user's Supabase access token (JWT)
+  const { data: { user }, error } = await supabase.auth.getUser(idToken);
+  if (error || !user) {
+    throw new Error('UNAUTHORIZED');
+  }
+  return user;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -28,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 1. Verify Firebase ID token
+  // 1. Verify Supabase Access Token
   try {
     await verifyToken(req);
   } catch {

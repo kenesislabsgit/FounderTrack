@@ -3,11 +3,11 @@
  *
  * Task 13.5 — Validates: Requirements 1.3, 1.5
  *
- * Verifies that AI proxy endpoints require Firebase ID token authentication,
+ * Verifies that AI proxy endpoints require Supabase token authentication,
  * which acts as CSRF protection since:
  * - Tokens are not stored in cookies (not auto-sent by browsers)
  * - Tokens must be explicitly included in the Authorization header
- * - Cross-origin requests cannot obtain a valid Firebase ID token
+ * - Cross-origin requests cannot obtain a valid Supabase token
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -15,23 +15,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 // Hoisted setup
 // ---------------------------------------------------------------------------
-const { mockVerifyIdToken } = vi.hoisted(() => {
+const { mockGetUser } = vi.hoisted(() => {
   process.env.GEMINI_API_KEY = 'test-key';
-  process.env.FIREBASE_PROJECT_ID = 'test-project';
-  return { mockVerifyIdToken: vi.fn() };
+  process.env.VITE_SUPABASE_URL = 'https://test-project.supabase.co';
+  process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key';
+  return { mockGetUser: vi.fn() };
 });
 
-vi.mock('firebase-admin', () => {
-  const apps: any[] = [];
+vi.mock('@supabase/supabase-js', () => {
   return {
-    default: {
-      apps,
-      initializeApp: vi.fn(),
-      auth: () => ({ verifyIdToken: mockVerifyIdToken }),
-    },
-    apps,
-    initializeApp: vi.fn(),
-    auth: () => ({ verifyIdToken: mockVerifyIdToken }),
+    createClient: () => ({
+      auth: {
+        getUser: (token: string) => mockGetUser(token),
+      },
+    }),
   };
 });
 
@@ -56,8 +53,8 @@ vi.mock('@google/genai', () => {
   };
 });
 
-import chatHandler from '@/api/ai/chat';
-import analyzeHandler from '@/api/ai/analyze';
+import chatHandler from '../../../../api/ai/chat';
+import analyzeHandler from '../../../../api/ai/analyze';
 
 function createMockReq(overrides: Record<string, any> = {}): any {
   return {
@@ -131,7 +128,7 @@ describe('CSRF Protection: /api/ai/chat', () => {
   });
 
   it('should reject requests with invalid token (simulating cross-origin attack)', async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error('Token verification failed'));
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('Token verification failed') });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer forged-csrf-token' },
@@ -167,7 +164,7 @@ describe('CSRF Protection: /api/ai/analyze', () => {
   });
 
   it('should reject requests with invalid token', async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error('Invalid'));
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('Invalid') });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer bad-token' },
@@ -197,7 +194,7 @@ describe('CSRF Protection: Client-side token inclusion', () => {
     expect(content).toContain('Authorization');
     expect(content).toContain('Bearer');
 
-    // Verify it uses getIdToken (Firebase Auth token)
-    expect(content).toContain('getIdToken');
+    // Verify it uses getAuthToken (Supabase user session helper)
+    expect(content).toContain('getAuthToken');
   });
 });

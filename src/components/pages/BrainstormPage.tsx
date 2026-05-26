@@ -1,19 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { BrainstormIdea } from '../../types';
 
@@ -31,25 +17,41 @@ export default function BrainstormPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'brainstormIdeas'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setIdeas(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as BrainstormIdea)));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'brainstorm_ideas',
+      {
+        orderBy: { column: 'created_at', ascending: false },
+      },
+      (data) => {
+        setIdeas(
+          data.map((i) => ({
+            id: i.id,
+            uid: i.uid,
+            authorName: i.author_name,
+            title: i.title,
+            description: i.description,
+            category: i.category,
+            status: i.status,
+            createdAt: new Date(i.created_at),
+            upvotes: i.upvotes || [],
+          }))
+        );
+      }
+    );
+    return unsubscribe;
   }, []);
 
   const handleSubmit = async () => {
     if (!user || !profile || !title.trim()) return;
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'brainstormIdeas'), {
+      await supabase.from('brainstorm_ideas').insert({
         uid: user.uid,
-        authorName: profile.name,
+        author_name: profile.name,
         title: title.trim(),
         description: description.trim(),
         category,
         status: 'open',
-        createdAt: serverTimestamp(),
         upvotes: [],
       });
       setTitle('');
@@ -64,11 +66,17 @@ export default function BrainstormPage() {
 
   const handleUpvote = async (idea: BrainstormIdea) => {
     if (!user || !idea.id) return;
-    const hasUpvoted = idea.upvotes?.includes(user.uid);
+    const upvotesArray = idea.upvotes || [];
+    const hasUpvoted = upvotesArray.includes(user.uid);
+    const updatedUpvotes = hasUpvoted
+      ? upvotesArray.filter((id) => id !== user.uid)
+      : [...upvotesArray, user.uid];
+
     try {
-      await updateDoc(doc(db, 'brainstormIdeas', idea.id), {
-        upvotes: hasUpvoted ? arrayRemove(user.uid) : arrayUnion(user.uid),
-      });
+      await supabase
+        .from('brainstorm_ideas')
+        .update({ upvotes: updatedUpvotes })
+        .eq('id', idea.id);
     } catch (err) {
       console.error('Failed to upvote:', err);
     }
@@ -77,7 +85,10 @@ export default function BrainstormPage() {
   const handleStatusChange = async (idea: BrainstormIdea, status: BrainstormIdea['status']) => {
     if (!idea.id) return;
     try {
-      await updateDoc(doc(db, 'brainstormIdeas', idea.id), { status });
+      await supabase
+        .from('brainstorm_ideas')
+        .update({ status })
+        .eq('id', idea.id);
     } catch (err) {
       console.error('Failed to update status:', err);
     }
@@ -86,7 +97,10 @@ export default function BrainstormPage() {
   const handleDelete = async (idea: BrainstormIdea) => {
     if (!idea.id || !confirm('Delete this idea?')) return;
     try {
-      await deleteDoc(doc(db, 'brainstormIdeas', idea.id));
+      await supabase
+        .from('brainstorm_ideas')
+        .delete()
+        .eq('id', idea.id);
     } catch (err) {
       console.error('Failed to delete:', err);
     }
@@ -200,7 +214,7 @@ export default function BrainstormPage() {
               <div className="flex items-center justify-between mt-auto pt-4 border-t border-[hsl(var(--border-subtle))]">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-[hsl(var(--text-muted))]">
-                    {idea.authorName} · {idea.createdAt instanceof Timestamp ? format(idea.createdAt.toDate(), 'MMM d') : ''}
+                    {idea.authorName} · {idea.createdAt ? format(new Date(idea.createdAt), 'MMM d') : ''}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

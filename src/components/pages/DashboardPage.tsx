@@ -1,23 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, DailyReport, TodoItem } from '../../types';
 import { SHIFT_DURATION_HOURS } from '../../lib/constants';
 import { computeShiftProgress } from '../../services/statsService';
 import { uploadCheckInPhoto } from '../../services/storageService';
+import { mapAttendanceDbToRecord, mapReportDbToRecord } from '../../services/dataService';
+import RichTextEditor from '../ui/RichTextEditor';
 
 import {
   Clock,
@@ -27,8 +16,6 @@ import {
   Circle,
   Plus,
   FileText,
-  TrendingUp,
-  Calendar,
   Loader2,
   Camera,
   X,
@@ -95,6 +82,8 @@ export default function DashboardPage() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [newTask, setNewTask] = useState('');
   const [reportUrl, setReportUrl] = useState('');
+  const [reportText, setReportText] = useState('');
+  const [reportTab, setReportTab] = useState<'write' | 'link'>('write');
   const [shiftProgress, setShiftProgress] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -102,64 +91,86 @@ export default function DashboardPage() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
+  // 1. Subscribe to today's attendance record
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(db, 'attendance'),
-      where('uid', '==', user.uid),
-      where('date', '==', today)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setTodayRecord({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord);
-      } else {
-        setTodayRecord(null);
+    const unsubscribe = subscribeToTable<any>(
+      'attendance',
+      {
+        filters: [
+          { column: 'uid', value: user.uid },
+          { column: 'date', value: today },
+        ],
+      },
+      (data) => {
+        if (data.length > 0) {
+          setTodayRecord(mapAttendanceDbToRecord(data[0]));
+        } else {
+          setTodayRecord(null);
+        }
+        setLoading(false);
       }
-      setLoading(false);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    );
+    return unsubscribe;
   }, [user, today]);
 
+  // 2. Subscribe to today's daily report
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(db, 'dailyReports'),
-      where('uid', '==', user.uid),
-      where('date', '==', today)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setTodayReport({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailyReport);
-      } else {
-        setTodayReport(null);
+    const unsubscribe = subscribeToTable<any>(
+      'daily_reports',
+      {
+        filters: [
+          { column: 'uid', value: user.uid },
+          { column: 'date', value: today },
+        ],
+      },
+      (data) => {
+        if (data.length > 0) {
+          const record = mapReportDbToRecord(data[0]);
+          setTodayReport(record);
+          if (record.reportUrl) {
+            if (/^(https?:\/\/)/i.test(record.reportUrl)) {
+              setReportUrl(record.reportUrl);
+              setReportTab('link');
+            } else {
+              setReportText(record.reportUrl);
+              setReportTab('write');
+            }
+          }
+        } else {
+          setTodayReport(null);
+        }
       }
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    );
+    return unsubscribe;
   }, [user, today]);
 
+  // 3. Subscribe to recent shifts (last 7 days)
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(db, 'attendance'),
-      where('uid', '==', user.uid),
-      orderBy('date', 'desc'),
-      limit(7)
+    const unsubscribe = subscribeToTable<any>(
+      'attendance',
+      {
+        filters: [{ column: 'uid', value: user.uid }],
+        orderBy: { column: 'date', ascending: false },
+        limit: 7,
+      },
+      (data) => {
+        setRecentRecords(data.map(mapAttendanceDbToRecord));
+      }
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setRecentRecords(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as AttendanceRecord)));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    return unsubscribe;
   }, [user]);
 
+  // 4. Update shift progress bar
   useEffect(() => {
     if (!todayRecord?.checkInTime || todayRecord?.checkOutTime) {
       setShiftProgress(todayRecord?.checkOutTime ? 100 : 0);
       return;
     }
     const updateProgress = () => {
-      const checkIn = todayRecord.checkInTime instanceof Timestamp
-        ? todayRecord.checkInTime.toDate()
-        : new Date(todayRecord.checkInTime);
+      const checkIn = new Date(todayRecord.checkInTime);
       setShiftProgress(computeShiftProgress(checkIn, SHIFT_DURATION_HOURS));
     };
     updateProgress();
@@ -196,13 +207,15 @@ export default function DashboardPage() {
         const filename = `checkin-${Date.now()}.jpg`;
         checkInPhoto = await uploadCheckInPhoto(user.uid, today, blob, filename);
       }
-      await addDoc(collection(db, 'attendance'), {
+
+      await supabase.from('attendance').insert({
         uid: user.uid,
         date: today,
-        checkInTime: serverTimestamp(),
+        check_in_time: new Date().toISOString(),
         status: 'present',
-        ...(checkInPhoto && { checkInPhoto }),
+        ...(checkInPhoto && { check_in_photo: checkInPhoto }),
       });
+
       clearPhoto();
     } catch (err) {
       console.error('Check-in failed:', err);
@@ -215,14 +228,16 @@ export default function DashboardPage() {
     if (!todayRecord?.id) return;
     setCheckingOut(true);
     try {
-      const checkIn = todayRecord.checkInTime instanceof Timestamp
-        ? todayRecord.checkInTime.toDate()
-        : new Date(todayRecord.checkInTime);
+      const checkIn = new Date(todayRecord.checkInTime);
       const totalHours = (Date.now() - checkIn.getTime()) / (1000 * 60 * 60);
-      await updateDoc(doc(db, 'attendance', todayRecord.id), {
-        checkOutTime: serverTimestamp(),
-        totalHours: Math.round(totalHours * 100) / 100,
-      });
+
+      await supabase
+        .from('attendance')
+        .update({
+          check_out_time: new Date().toISOString(),
+          total_hours: Math.round(totalHours * 100) / 100,
+        })
+        .eq('id', todayRecord.id);
     } catch (err) {
       console.error('Check-out failed:', err);
     } finally {
@@ -235,14 +250,17 @@ export default function DashboardPage() {
     const task: TodoItem = { task: newTask.trim(), completed: false };
     try {
       if (todayReport?.id) {
-        await updateDoc(doc(db, 'dailyReports', todayReport.id), {
-          todoList: [...(todayReport.todoList || []), task],
-        });
+        await supabase
+          .from('daily_reports')
+          .update({
+            todo_list: [...(todayReport.todoList || []), task],
+          })
+          .eq('id', todayReport.id);
       } else {
-        await addDoc(collection(db, 'dailyReports'), {
+        await supabase.from('daily_reports').insert({
           uid: user.uid,
           date: today,
-          todoList: [task],
+          todo_list: [task],
         });
       }
       setNewTask('');
@@ -256,7 +274,10 @@ export default function DashboardPage() {
     const updated = [...todayReport.todoList];
     updated[index] = { ...updated[index], completed: !updated[index].completed };
     try {
-      await updateDoc(doc(db, 'dailyReports', todayReport.id), { todoList: updated });
+      await supabase
+        .from('daily_reports')
+        .update({ todo_list: updated })
+        .eq('id', todayReport.id);
     } catch (err) {
       console.error('Failed to toggle task:', err);
     }
@@ -266,17 +287,41 @@ export default function DashboardPage() {
     if (!user || !reportUrl.trim()) return;
     try {
       if (todayReport?.id) {
-        await updateDoc(doc(db, 'dailyReports', todayReport.id), { reportUrl: reportUrl.trim() });
+        await supabase
+          .from('daily_reports')
+          .update({ report_url: reportUrl.trim() })
+          .eq('id', todayReport.id);
       } else {
-        await addDoc(collection(db, 'dailyReports'), {
+        await supabase.from('daily_reports').insert({
           uid: user.uid,
           date: today,
-          reportUrl: reportUrl.trim(),
-          todoList: [],
+          report_url: reportUrl.trim(),
+          todo_list: [],
         });
       }
     } catch (err) {
       console.error('Failed to save report URL:', err);
+    }
+  };
+
+  const handleSaveReportText = async () => {
+    if (!user || !reportText.trim()) return;
+    try {
+      if (todayReport?.id) {
+        await supabase
+          .from('daily_reports')
+          .update({ report_url: reportText.trim() })
+          .eq('id', todayReport.id);
+      } else {
+        await supabase.from('daily_reports').insert({
+          uid: user.uid,
+          date: today,
+          report_url: reportText.trim(),
+          todo_list: [],
+        });
+      }
+    } catch (err) {
+      console.error('Failed to save report text:', err);
     }
   };
 
@@ -296,7 +341,7 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="glass rounded-2xl p-6">
+            <div className="skeuo-panel rounded-2xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-10 w-10 rounded-xl" />
@@ -312,7 +357,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="space-y-6">
-            <div className="glass rounded-2xl p-6">
+            <div className="skeuo-panel rounded-2xl p-6">
               <div className="skeleton h-4 w-24 mb-4 rounded-lg" />
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -341,14 +386,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Shift Tracking Card */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="glass rounded-2xl p-6 animate-slide-up-fade">
+          <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500">
-                  <Clock size={20} />
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-2xl skeuo-icon-well flex items-center justify-center skeuo-icon-bg-amber border border-[hsl(var(--border-subtle))]/20 shadow-[0_0_12px_hsla(40,95%,52%,0.15)] shrink-0">
+                  <Clock size={22} className="skeuo-icon-glow" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Shift</h3>
+                  <h3 className="text-sm font-extrabold text-[hsl(var(--text-primary))] uppercase tracking-widest font-heading">Today's Shift</h3>
                   <p className="text-xs text-[hsl(var(--text-muted))]">{today}</p>
                 </div>
               </div>
@@ -371,30 +416,20 @@ export default function DashboardPage() {
                 <span className="text-[hsl(var(--text-muted))]">Shift Progress</span>
                 <span className="font-bold text-[hsl(var(--text-primary))]">{shiftProgress.toFixed(0)}%</span>
               </div>
-              <div className="h-3 w-full rounded-full inset-well overflow-hidden">
+              <div className="h-4 w-full rounded-full skeuo-well overflow-hidden p-[2px]">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] transition-all duration-500"
+                  className="h-full rounded-full skeuo-progress-bar"
                   style={{ width: `${shiftProgress}%` }}
                 />
               </div>
               {todayRecord?.checkInTime && (
                 <p className="text-[10px] text-[hsl(var(--text-muted))] mt-2">
                   Checked in at{' '}
-                  {format(
-                    todayRecord.checkInTime instanceof Timestamp
-                      ? todayRecord.checkInTime.toDate()
-                      : new Date(todayRecord.checkInTime),
-                    'hh:mm a'
-                  )}
+                  {format(new Date(todayRecord.checkInTime), 'hh:mm a')}
                   {todayRecord.checkOutTime && (
                     <>
                       {' · Checked out at '}
-                      {format(
-                        todayRecord.checkOutTime instanceof Timestamp
-                          ? todayRecord.checkOutTime.toDate()
-                          : new Date(todayRecord.checkOutTime),
-                        'hh:mm a'
-                      )}
+                      {format(new Date(todayRecord.checkOutTime), 'hh:mm a')}
                     </>
                   )}
                   {todayRecord.totalHours && ` · ${todayRecord.totalHours.toFixed(1)}h total`}
@@ -423,7 +458,7 @@ export default function DashboardPage() {
                     />
                     <button
                       onClick={clearPhoto}
-                      className="absolute -top-2 -right-2 h-5 w-5 min-w-0 rounded-full p-0 flex items-center justify-center rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] text-white text-xs"
+                      className="absolute -top-2 -right-2 h-5 w-5 min-w-0 rounded-full p-0 flex items-center justify-center bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] text-white text-xs"
                     >
                       <X size={12} />
                     </button>
@@ -458,7 +493,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleCheckIn}
                   disabled={checkingIn}
-                  className="flex-1 rounded-xl bg-gradient-to-b from-[hsl(145,70%,50%)] to-[hsl(145,70%,42%)] px-5 py-3 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(145,80%,70%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 rounded-xl skeuo-button-success px-5 py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 neon-glow-success"
                 >
                   {checkingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
                   {checkingIn ? 'Checking In...' : 'Check In'}
@@ -467,7 +502,7 @@ export default function DashboardPage() {
                 <button
                   onClick={handleCheckOut}
                   disabled={checkingOut}
-                  className="flex-1 rounded-xl bg-gradient-to-b from-[hsl(0,72%,58%)] to-[hsl(0,72%,48%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(0,80%,75%,0.35),0_2px_4px_rgba(0,0,0,0.25)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 rounded-xl skeuo-button-danger px-5 py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 neon-glow-danger"
                 >
                   {checkingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
                   {checkingOut ? 'Checking Out...' : 'Check Out'}
@@ -482,18 +517,23 @@ export default function DashboardPage() {
           </div>
 
           {/* Todo List */}
-          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
+          <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Today's Tasks</h3>
-                <span className="text-xs text-[hsl(var(--text-muted))]">
-                  {completedCount}/{todoList.length}
-                </span>
+              <div className="flex items-center gap-3.5">
+                <div className="h-11 w-11 rounded-2xl skeuo-icon-well flex items-center justify-center skeuo-icon-bg-green border border-[hsl(var(--border-subtle))]/20 shadow-[0_0_12px_hsla(145,70%,50%,0.15)] shrink-0">
+                  <CheckCircle2 size={18} className="skeuo-icon-glow" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[hsl(var(--text-primary))] uppercase tracking-widest font-heading">Today's Tasks</h3>
+                  <span className="text-xs font-semibold text-[hsl(var(--text-muted))]">
+                    {completedCount}/{todoList.length} Tasks
+                  </span>
+                </div>
               </div>
               {todoList.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 rounded-full inset-well overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${taskProgress}%` }} />
+                  <div className="h-3 w-20 rounded-full skeuo-well overflow-hidden p-[1px]">
+                    <div className="h-full skeuo-progress-bar-success rounded-full" style={{ width: `${taskProgress}%` }} />
                   </div>
                   <span className="text-[10px] font-bold text-[hsl(var(--text-muted))]">{taskProgress.toFixed(0)}%</span>
                 </div>
@@ -530,49 +570,99 @@ export default function DashboardPage() {
                 onChange={(e) => setNewTask(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
                 placeholder="Add a task..."
-                className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
+                className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30"
               />
               <button
                 onClick={handleAddTask}
                 disabled={!newTask.trim()}
-                className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-3 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
+                className="rounded-xl skeuo-button px-3 py-1.5 text-xs font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold"
               >
                 <Plus size={16} />
               </button>
             </div>
           </div>
 
-          {/* Daily Report Link */}
-          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '100ms' }}>
-            <div className="flex items-center gap-3 mb-4">
-              <FileText size={18} className="text-[hsl(var(--text-muted))]" />
-              <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest">Daily Report</h3>
+          {/* Daily Report Word Editor and URL Panel */}
+          <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="h-11 w-11 rounded-2xl skeuo-icon-well flex items-center justify-center skeuo-icon-bg-blue border border-[hsl(var(--border-subtle))]/20 shadow-[0_0_12px_hsla(210,80%,56%,0.15)] shrink-0">
+                <FileText size={18} className="skeuo-icon-glow" />
+              </div>
+              <h3 className="text-sm font-extrabold text-[hsl(var(--text-primary))] uppercase tracking-widest font-heading">Daily Report</h3>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={reportUrl || todayReport?.reportUrl || ''}
-                onChange={(e) => setReportUrl(e.target.value)}
-                placeholder="Paste your daily report URL..."
-                className="flex-1 rounded-xl inset-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
-              />
+
+            {/* Premium Skeuomorphic Tab Selector */}
+            <div className="flex rounded-xl skeuo-well p-1 mb-4 w-full border border-[hsl(var(--border-subtle))]/10">
               <button
-                onClick={handleSaveReportUrl}
-                disabled={!reportUrl.trim()}
-                className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
+                onClick={() => setReportTab('write')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  reportTab === 'write'
+                    ? 'skeuo-button shadow-sm'
+                    : 'text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]'
+                }`}
               >
-                Save
+                Write Entry
+              </button>
+              <button
+                onClick={() => setReportTab('link')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  reportTab === 'link'
+                    ? 'skeuo-button shadow-sm'
+                    : 'text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]'
+                }`}
+              >
+                Attach Link
               </button>
             </div>
-            {todayReport?.reportUrl && (
-              <a
-                href={todayReport.reportUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block mt-2 text-xs text-[hsl(var(--accent))] hover:underline"
-              >
-                View submitted report →
-              </a>
+
+            {reportTab === 'write' ? (
+              /* DIRECT WORD EDITOR */
+              <div className="space-y-4">
+                <RichTextEditor
+                  value={reportText}
+                  onChange={setReportText}
+                  uid={user?.uid || ''}
+                  date={today}
+                  placeholder="Draft your daily report document here... Use standard styling controls or click Templates to inject standard structures instantly."
+                />
+                <button
+                  onClick={handleSaveReportText}
+                  disabled={!reportText.trim() || reportText === '<p></p>' || reportText === '<br>'}
+                  className="w-full rounded-xl skeuo-button py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 neon-glow-gold"
+                >
+                  Save Report Entry
+                </button>
+              </div>
+            ) : (
+              /* EXTERNAL LINK ENTRANCE */
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={reportUrl}
+                    onChange={(e) => setReportUrl(e.target.value)}
+                    placeholder="Paste your daily report URL..."
+                    className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30"
+                  />
+                  <button
+                    onClick={handleSaveReportUrl}
+                    disabled={!reportUrl.trim()}
+                    className="rounded-xl skeuo-button px-5 py-2.5 text-sm font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold shrink-0"
+                  >
+                    Save Link
+                  </button>
+                </div>
+                {todayReport?.reportUrl && /^(https?:\/\/)/i.test(todayReport.reportUrl) && (
+                  <a
+                    href={todayReport.reportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-2 text-xs text-[hsl(var(--accent))] hover:underline"
+                  >
+                    View submitted link →
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -580,7 +670,7 @@ export default function DashboardPage() {
         {/* Right Sidebar */}
         <div className="space-y-6">
           {/* Quick Stats */}
-          <div className="glass rounded-2xl p-6 animate-slide-up-fade">
+          <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade">
             <h3 className="text-sm font-bold uppercase tracking-widest text-[hsl(var(--text-muted))] mb-4">Last 7 Days</h3>
             <div className="space-y-4">
               <div className="flex justify-between">
@@ -601,7 +691,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity */}
-          <div className="glass rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
+          <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
             <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest mb-4">Recent Shifts</h3>
             <div className="space-y-3">
               {recentRecords.slice(0, 5).map((record) => (

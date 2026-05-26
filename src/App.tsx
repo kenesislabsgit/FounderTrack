@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import { useAuthContext } from './contexts/AuthContext';
@@ -8,30 +8,22 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { AdminRoute } from './components/layout/AdminRoute';
 import { RoleSelection } from './components/ui/RoleSelection';
+import PremiumLoader from './components/ui/PremiumLoader';
 
-// Lazy-loaded page components
-const LoginPage = lazy(() => import('./components/pages/LoginPage'));
-const DashboardPage = lazy(() => import('./components/pages/DashboardPage'));
-const AttendancePage = lazy(() => import('./components/pages/AttendancePage'));
-const LeavesPage = lazy(() => import('./components/pages/LeavesPage'));
-const ReportsPage = lazy(() => import('./components/pages/ReportsPage'));
-const AnalyticsPage = lazy(() => import('./components/pages/AnalyticsPage'));
-const BotPage = lazy(() => import('./components/pages/BotPage'));
-const BrainstormPage = lazy(() => import('./components/pages/BrainstormPage'));
-const TeamManagementPage = lazy(() => import('./components/pages/TeamManagementPage'));
-const ChoppingBlockPage = lazy(() => import('./components/pages/ChoppingBlockPage'));
-const SettingsPage = lazy(() => import('./components/pages/SettingsPage'));
+// Static page imports for instant, lag-free transitions
+import LoginPage from './components/pages/LoginPage';
+import DashboardPage from './components/pages/DashboardPage';
+import AttendancePage from './components/pages/AttendancePage';
+import LeavesPage from './components/pages/LeavesPage';
+import ReportsPage from './components/pages/ReportsPage';
+import AnalyticsPage from './components/pages/AnalyticsPage';
+import BotPage from './components/pages/BotPage';
+import BrainstormPage from './components/pages/BrainstormPage';
+import TeamManagementPage from './components/pages/TeamManagementPage';
+import ChoppingBlockPage from './components/pages/ChoppingBlockPage';
+import SettingsPage from './components/pages/SettingsPage';
 
-function LoadingSpinner() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-[hsl(var(--bg-primary))]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[hsl(var(--accent))] border-t-transparent" />
-        <p className="text-sm font-medium text-[hsl(var(--text-muted))]">Kenesis Vision Loading...</p>
-      </div>
-    </div>
-  );
-}
+
 
 /**
  * Layout shell wrapping all authenticated pages.
@@ -62,12 +54,12 @@ export default function App() {
   const { loading } = useAuthContext();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <PremiumLoader />;
   }
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<PremiumLoader />}>
         <Routes>
           {/* Public route */}
           <Route path="/login" element={<LoginPage />} />

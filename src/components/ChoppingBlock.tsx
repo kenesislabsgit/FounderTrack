@@ -1,23 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp, 
-  orderBy, 
-  limit,
-  Timestamp,
-  getDocs,
-  deleteDoc,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase, subscribeToTable } from '../lib/supabase';
 import { UserProfile, ReviewCycle, Ballot } from '../types';
-import { format, addDays, isAfter } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { 
   Shield, 
   AlertTriangle, 
@@ -25,9 +9,6 @@ import {
   CheckCircle2, 
   ChevronRight, 
   Lock, 
-  Users,
-  TrendingDown,
-  MessageSquare,
   Vote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -53,56 +34,104 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
   const founders = allUsers.filter(u => u.role === 'founder');
   const otherFounders = founders.filter(u => u.uid !== user?.uid);
 
+  // 1. Subscribe to recent review cycles
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'reviewCycles'), orderBy('startDate', 'desc'), limit(5));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cycles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReviewCycle));
-      setLastCycles(cycles);
-      const activeOrVoting = cycles.find(c => c.status === 'active' || c.status === 'voting');
-      setCurrentCycle(activeOrVoting || cycles[0] || null);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'review_cycles',
+      {
+        orderBy: { column: 'start_date', ascending: false },
+        limit: 5,
+      },
+      (data) => {
+        const cycles = data.map((c) => ({
+          id: c.id,
+          startDate: new Date(c.start_date),
+          endDate: new Date(c.end_date),
+          status: c.status,
+          underperformerUid: c.underperformer_uid || undefined,
+          isTie: c.is_tie,
+          tieBreakerUid: c.tie_breaker_uid || undefined,
+          results: c.results || undefined,
+        }));
+        setLastCycles(cycles);
+        const activeOrVoting = cycles.find((c) => c.status === 'active' || c.status === 'voting');
+        setCurrentCycle(activeOrVoting || cycles[0] || null);
+      }
+    );
+    return unsubscribe;
   }, [user]);
 
+  // 2. Subscribe to current user's ballot for this cycle
   useEffect(() => {
     if (!currentCycle?.id || !user) return;
-    const q = query(
-      collection(db, 'ballots'), 
-      where('cycleId', '==', currentCycle.id),
-      where('voterUid', '==', user.uid)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setMyBallot({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Ballot);
-      } else {
-        setMyBallot(null);
+    const unsubscribe = subscribeToTable<any>(
+      'ballots',
+      {
+        filters: [
+          { column: 'cycle_id', value: currentCycle.id },
+          { column: 'voter_uid', value: user.uid },
+        ],
+      },
+      (data) => {
+        if (data.length > 0) {
+          setMyBallot({
+            id: data[0].id,
+            cycleId: data[0].cycle_id,
+            voterUid: data[0].voter_uid,
+            rankings: data[0].rankings,
+            createdAt: new Date(data[0].created_at),
+          });
+        } else {
+          setMyBallot(null);
+        }
       }
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    );
+    return unsubscribe;
   }, [currentCycle?.id, user]);
 
+  // 3. Subscribe to all ballots for the completed cycle
   useEffect(() => {
     if (!currentCycle?.id || currentCycle.status !== 'completed') {
       setAllBallots([]);
       return;
     }
-    const q = query(collection(db, 'ballots'), where('cycleId', '==', currentCycle.id));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAllBallots(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ballot)));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'ballots',
+      {
+        filters: [{ column: 'cycle_id', value: currentCycle.id }],
+      },
+      (data) => {
+        setAllBallots(
+          data.map((d) => ({
+            id: d.id,
+            cycleId: d.cycle_id,
+            voterUid: d.voter_uid,
+            rankings: d.rankings,
+            createdAt: new Date(d.created_at),
+          }))
+        );
+      }
+    );
+    return unsubscribe;
   }, [currentCycle?.id, currentCycle?.status]);
 
   const handleStartVoting = async () => {
-    if (!currentCycle) {
-      await addDoc(collection(db, 'reviewCycles'), {
-        startDate: serverTimestamp(),
-        endDate: Timestamp.fromDate(addDays(new Date(), 14)),
-        status: 'voting'
-      });
-    } else {
-      await updateDoc(doc(db, 'reviewCycles', currentCycle.id!), { status: 'voting' });
+    try {
+      if (!currentCycle) {
+        await supabase.from('review_cycles').insert({
+          start_date: new Date().toISOString(),
+          end_date: addDays(new Date(), 14).toISOString(),
+          status: 'voting',
+        });
+      } else {
+        await supabase
+          .from('review_cycles')
+          .update({ status: 'voting' })
+          .eq('id', currentCycle.id);
+      }
+    } catch (err) {
+      console.error('Failed to start voting:', err);
     }
   };
 
@@ -113,21 +142,21 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
       addToast("Please rank all other founders.", "warning");
       return;
     }
-    if (rankedUids.some(uid => !rankings[uid].reason.trim())) {
+    if (rankedUids.some((uid) => !rankings[uid].reason.trim())) {
       addToast("Please provide a reason for each ranking.", "warning");
       return;
     }
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, 'ballots'), {
-        cycleId: currentCycle.id,
-        voterUid: user.uid,
-        rankings: otherFounders.map(f => ({
+      await supabase.from('ballots').insert({
+        cycle_id: currentCycle.id,
+        voter_uid: user.uid,
+        rankings: otherFounders.map((f) => ({
           targetUid: f.uid,
           rank: rankings[f.uid].rank,
-          reason: rankings[f.uid].reason
+          reason: rankings[f.uid].reason,
         })),
-        createdAt: serverTimestamp()
+        created_at: new Date().toISOString(),
       });
     } catch (err) {
       console.error("Failed to submit ballot:", err);
@@ -138,35 +167,70 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
 
   const handleResolveCycle = async () => {
     if (!currentCycle?.id) return;
-    const ballotsSnap = await getDocs(query(collection(db, 'ballots'), where('cycleId', '==', currentCycle.id)));
-    const ballots = ballotsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Ballot));
+    const { data: ballotsData, error } = await supabase
+      .from('ballots')
+      .select('*')
+      .eq('cycle_id', currentCycle.id);
+
+    if (error) {
+      console.error('Failed to resolve cycle ballots fetch:', error.message);
+      return;
+    }
+
+    const ballots = (ballotsData || []).map((d) => ({
+      id: d.id,
+      cycleId: d.cycle_id,
+      voterUid: d.voter_uid,
+      rankings: d.rankings,
+      createdAt: new Date(d.created_at),
+    }));
+
     if (ballots.length < founders.length) {
       if (!confirm(`Only ${ballots.length}/${founders.length} founders have voted. Resolve anyway?`)) return;
     }
+
     const scores: { [uid: string]: number } = {};
-    founders.forEach(f => scores[f.uid] = 0);
-    ballots.forEach(b => {
-      b.rankings.forEach(r => {
+    founders.forEach((f) => (scores[f.uid] = 0));
+    ballots.forEach((b) => {
+      b.rankings.forEach((r) => {
         if (scores[r.targetUid] !== undefined) scores[r.targetUid] += r.rank;
       });
     });
+
     const avgScores: { [uid: string]: number } = {};
-    Object.keys(scores).forEach(uid => {
-      const voterCount = ballots.filter(b => b.voterUid !== uid).length;
+    Object.keys(scores).forEach((uid) => {
+      const voterCount = ballots.filter((b) => b.voterUid !== uid).length;
       avgScores[uid] = voterCount > 0 ? scores[uid] / voterCount : 0;
     });
+
     let maxScore = -1;
     let underperformerUid = '';
     let isTie = false;
     Object.entries(avgScores).forEach(([uid, score]) => {
-      if (score > maxScore) { maxScore = score; underperformerUid = uid; isTie = false; }
-      else if (score === maxScore && maxScore !== -1) { isTie = true; }
+      if (score > maxScore) {
+        maxScore = score;
+        underperformerUid = uid;
+        isTie = false;
+      } else if (score === maxScore && maxScore !== -1) {
+        isTie = true;
+      }
     });
-    await updateDoc(doc(db, 'reviewCycles', currentCycle.id), {
-      status: 'completed', underperformerUid: isTie ? null : underperformerUid, isTie, results: avgScores, endDate: serverTimestamp()
-    });
-    await addDoc(collection(db, 'reviewCycles'), {
-      startDate: serverTimestamp(), endDate: Timestamp.fromDate(addDays(new Date(), 14)), status: 'active'
+
+    await supabase
+      .from('review_cycles')
+      .update({
+        status: 'completed',
+        underperformer_uid: isTie ? null : underperformerUid,
+        is_tie: isTie,
+        results: avgScores,
+        end_date: new Date().toISOString(),
+      })
+      .eq('id', currentCycle.id);
+
+    await supabase.from('review_cycles').insert({
+      start_date: new Date().toISOString(),
+      end_date: addDays(new Date(), 14).toISOString(),
+      status: 'active',
     });
   };
 
@@ -174,12 +238,10 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
     if (!confirm("Are you sure you want to reset all governance data? This will delete all cycles and ballots.")) return;
     setIsSubmitting(true);
     try {
-      const cyclesSnap = await getDocs(collection(db, 'reviewCycles'));
-      const ballotsSnap = await getDocs(collection(db, 'ballots'));
-      const batch = writeBatch(db);
-      cyclesSnap.docs.forEach(d => batch.delete(d.ref));
-      ballotsSnap.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
+      await Promise.all([
+        supabase.from('review_cycles').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        supabase.from('ballots').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      ]);
       addToast("Governance data reset successfully.", "success");
     } catch (err) {
       console.error("Failed to reset governance:", err);
@@ -192,19 +254,29 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
     if (!currentCycle?.id) return;
     if (!confirm("Simulate a tie between the first two founders?")) return;
     const tieResults: { [uid: string]: number } = {};
-    founders.forEach((f, i) => { tieResults[f.uid] = i < 2 ? 4 : 1; });
-    await updateDoc(doc(db, 'reviewCycles', currentCycle.id), {
-      status: 'completed', isTie: true, results: tieResults, underperformerUid: null, endDate: serverTimestamp()
+    founders.forEach((f, i) => {
+      tieResults[f.uid] = i < 2 ? 4 : 1;
     });
+
+    await supabase
+      .from('review_cycles')
+      .update({
+        status: 'completed',
+        is_tie: true,
+        results: tieResults,
+        underperformer_uid: null,
+        end_date: new Date().toISOString(),
+      })
+      .eq('id', currentCycle.id);
   };
 
   const getFounderStatus = (uid: string) => {
-    const completedCycles = lastCycles.filter(c => c.status === 'completed');
+    const completedCycles = lastCycles.filter((c) => c.status === 'completed');
     if (completedCycles.length === 0) return 'safe';
     const lastCycle = completedCycles[0];
     const prevCycle = completedCycles[1];
     const wasUnderLast = lastCycle.underperformerUid === uid || lastCycle.tieBreakerUid === uid;
-    const wasUnderPrev = prevCycle ? (prevCycle.underperformerUid === uid || prevCycle.tieBreakerUid === uid) : false;
+    const wasUnderPrev = prevCycle ? lastCycle.underperformerUid === uid || prevCycle.tieBreakerUid === uid : false;
     if (wasUnderLast && wasUnderPrev) return 'penalty';
     if (wasUnderLast) return 'warning';
     return 'safe';
@@ -253,7 +325,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
 
       {/* Status Board */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {founders.map(founder => {
+        {founders.map((founder) => {
           const status = getFounderStatus(founder.uid);
           return (
             <div key={founder.uid} className="rounded-2xl glass p-6 flex flex-col items-center text-center animate-slide-up-fade">
@@ -299,27 +371,33 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {founders.filter(f => currentCycle.results && currentCycle.results[f.uid] === Math.max(...(Object.values(currentCycle.results) as number[]))).map(f => (
-              <button
-                key={f.uid}
-                onClick={async () => {
-                  if (confirm(`Designate ${f.name} as the Underperformer?`)) {
-                    await updateDoc(doc(db, 'reviewCycles', currentCycle.id!), {
-                      tieBreakerUid: f.uid, isTie: false
-                    });
-                  }
-                }}
-                className="flex items-center gap-4 p-4 rounded-2xl glass hover:border-[hsl(var(--accent))]/50 transition-all text-left hover:-translate-y-[0.5px] hover:shadow-[0_0_12px_hsla(var(--accent),0.25)]"
-              >
-                <div className="h-10 w-10 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center font-bold text-[hsl(var(--text-primary))]">
-                  {f.name[0]}
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[hsl(var(--text-primary))]">{f.name}</p>
-                  <p className="text-xs text-[hsl(var(--text-muted))]">Select as Underperformer</p>
-                </div>
-              </button>
-            ))}
+            {founders
+              .filter((f) => currentCycle.results && currentCycle.results[f.uid] === Math.max(...(Object.values(currentCycle.results) as number[])))
+              .map((f) => (
+                <button
+                  key={f.uid}
+                  onClick={async () => {
+                    if (confirm(`Designate ${f.name} as the Underperformer?`)) {
+                      await supabase
+                        .from('review_cycles')
+                        .update({
+                          tie_breaker_uid: f.uid,
+                          is_tie: false,
+                        })
+                        .eq('id', currentCycle.id!);
+                    }
+                  }}
+                  className="flex items-center gap-4 p-4 rounded-2xl glass hover:border-[hsl(var(--accent))]/50 transition-all text-left hover:-translate-y-[0.5px] hover:shadow-[0_0_12px_hsla(var(--accent),0.25)]"
+                >
+                  <div className="h-10 w-10 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center font-bold text-[hsl(var(--text-primary))]">
+                    {f.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[hsl(var(--text-primary))]">{f.name}</p>
+                    <p className="text-xs text-[hsl(var(--text-muted))]">Select as Underperformer</p>
+                  </div>
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -392,7 +470,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
               </div>
             ) : (
               <div className="space-y-6">
-                {otherFounders.map(f => (
+                {otherFounders.map((f) => (
                   <div key={f.uid} className="p-6 rounded-2xl inset-well space-y-4">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-[hsl(var(--bg-surface))] flex items-center justify-center font-bold text-[hsl(var(--text-muted))] border border-[hsl(var(--border-default))]">
@@ -403,10 +481,10 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
                         <p className="text-[10px] text-[hsl(var(--text-muted))] uppercase font-bold tracking-widest">Co-Founder</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4].map(r => (
+                        {[1, 2, 3, 4].map((r) => (
                           <button
                             key={r}
-                            onClick={() => setRankings(prev => ({ ...prev, [f.uid]: { ...prev[f.uid], rank: r } }))}
+                            onClick={() => setRankings((prev) => ({ ...prev, [f.uid]: { ...prev[f.uid], rank: r } }))}
                             className={cn(
                               "h-8 w-8 rounded-lg text-xs font-bold transition-all border",
                               rankings[f.uid]?.rank === r 
@@ -422,7 +500,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
                     <textarea 
                       placeholder={`Why this rank for ${f.name.split(' ')[0]}? (Required)`}
                       value={rankings[f.uid]?.reason || ''}
-                      onChange={(e) => setRankings(prev => ({ ...prev, [f.uid]: { ...prev[f.uid], reason: e.target.value } }))}
+                      onChange={(e) => setRankings((prev) => ({ ...prev, [f.uid]: { ...prev[f.uid], reason: e.target.value } }))}
                       rows={2}
                       className="w-full rounded-xl inset-well px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 resize-none text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))]"
                     />
@@ -445,8 +523,8 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
             <div className="rounded-3xl glass p-8 animate-slide-up-fade">
               <h4 className="text-lg font-bold text-[hsl(var(--text-primary))] mb-6">Cycle Feedback (Anonymized)</h4>
               <div className="space-y-6">
-                {founders.map(f => {
-                  const reasons = allBallots.flatMap(b => b.rankings.filter(r => r.targetUid === f.uid).map(r => r.reason));
+                {founders.map((f) => {
+                  const reasons = allBallots.flatMap((b) => b.rankings.filter((r) => r.targetUid === f.uid).map((r) => r.reason));
                   if (reasons.length === 0) return null;
                   return (
                     <div key={f.uid} className="space-y-3">
@@ -517,7 +595,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
                 <div className="flex justify-between text-xs">
                   <span className="text-[hsl(var(--text-muted))]">Ends On</span>
                   <span className="text-[hsl(var(--text-primary))] font-bold">
-                    {currentCycle.endDate instanceof Timestamp ? format(currentCycle.endDate.toDate(), 'MMM d, yyyy') : 'TBD'}
+                    {currentCycle.endDate ? format(new Date(currentCycle.endDate), 'MMM d, yyyy') : 'TBD'}
                   </span>
                 </div>
                 <div className="pt-4">

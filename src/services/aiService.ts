@@ -1,4 +1,4 @@
-import { auth } from '../firebase';
+import { supabase } from '../lib/supabase';
 import { AttendanceRecord, UserProfile, DailyReport } from '../types';
 
 export interface LeaderboardEntry {
@@ -21,7 +21,8 @@ export interface AIAnalysisResult {
 }
 
 async function getAuthToken(): Promise<string> {
-  const token = await auth.currentUser?.getIdToken();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
   if (!token) {
     throw new Error('User is not authenticated');
   }

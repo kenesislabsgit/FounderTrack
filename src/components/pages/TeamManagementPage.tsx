@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { UserProfile } from '../../types';
+import { mapUserDbToProfile } from '../../services/dataService';
 
-import { Users, Shield, Edit2, Check, X } from 'lucide-react';
+import { Users, Edit2, Check, X } from 'lucide-react';
 
 export default function TeamManagementPage() {
   const { profile } = useAuthContext();
@@ -14,11 +14,15 @@ export default function TeamManagementPage() {
   const [editRole, setEditRole] = useState<UserProfile['role']>('employee');
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      setAllUsers(snapshot.docs.map((d) => d.data() as UserProfile));
-      setLoading(false);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'users',
+      {},
+      (data) => {
+        setAllUsers(data.map(mapUserDbToProfile));
+        setLoading(false);
+      }
+    );
+    return unsubscribe;
   }, []);
 
   const handleEditRole = (user: UserProfile) => {
@@ -28,7 +32,10 @@ export default function TeamManagementPage() {
 
   const handleSaveRole = async (uid: string) => {
     try {
-      await updateDoc(doc(db, 'users', uid), { role: editRole });
+      await supabase
+        .from('users')
+        .update({ role: editRole })
+        .eq('uid', uid);
       setEditingUid(null);
     } catch (err) {
       console.error('Failed to update role:', err);

@@ -4,8 +4,8 @@
  * Task 13.3 — Validates: Requirements 1.3, 1.5
  *
  * Tests the chat and analyze serverless handlers directly by mocking
- * Firebase Admin SDK and Gemini SDK. Verifies that:
- * - Valid Firebase ID token → 200 with AI response
+ * Supabase client and Gemini SDK. Verifies that:
+ * - Valid Supabase token → 200 with AI response
  * - Invalid token → 401
  * - Missing Authorization header → 401
  * - Malformed request body → 400
@@ -16,31 +16,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 // Hoisted setup: env vars + mock fns must be available before module load
 // ---------------------------------------------------------------------------
-const { mockVerifyIdToken, mockGenerateContent } = vi.hoisted(() => {
+const { mockGetUser, mockGenerateContent } = vi.hoisted(() => {
   // Set env vars at the earliest possible point (hoisted block runs first)
   process.env.GEMINI_API_KEY = 'test-gemini-key';
-  process.env.FIREBASE_PROJECT_ID = 'test-project';
+  process.env.VITE_SUPABASE_URL = 'https://test-project.supabase.co';
+  process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key';
 
   return {
-    mockVerifyIdToken: vi.fn(),
+    mockGetUser: vi.fn(),
     mockGenerateContent: vi.fn(),
   };
 });
 
 // ---------------------------------------------------------------------------
-// Mock Firebase Admin SDK
+// Mock Supabase JS SDK
 // ---------------------------------------------------------------------------
-vi.mock('firebase-admin', () => {
-  const apps: any[] = [];
+vi.mock('@supabase/supabase-js', () => {
   return {
-    default: {
-      apps,
-      initializeApp: vi.fn(),
-      auth: () => ({ verifyIdToken: mockVerifyIdToken }),
-    },
-    apps,
-    initializeApp: vi.fn(),
-    auth: () => ({ verifyIdToken: mockVerifyIdToken }),
+    createClient: () => ({
+      auth: {
+        getUser: (token: string) => mockGetUser(token),
+      },
+    }),
   };
 });
 
@@ -68,8 +65,8 @@ vi.mock('@google/genai', () => {
 // ---------------------------------------------------------------------------
 // Import handlers after mocks are set up
 // ---------------------------------------------------------------------------
-import chatHandler from '@/api/ai/chat';
-import analyzeHandler from '@/api/ai/analyze';
+import chatHandler from '../../../../api/ai/chat';
+import analyzeHandler from '../../../../api/ai/analyze';
 
 // ---------------------------------------------------------------------------
 // Helper: create mock VercelRequest / VercelResponse
@@ -108,7 +105,7 @@ describe('AI Proxy: /api/ai/chat', () => {
   });
 
   it('should return 200 with AI response for valid token', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'user-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
     mockGenerateContent.mockResolvedValue({ text: 'Hello from AI' });
 
     const req = createMockReq({
@@ -121,11 +118,11 @@ describe('AI Proxy: /api/ai/chat', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ text: 'Hello from AI' });
-    expect(mockVerifyIdToken).toHaveBeenCalledWith('valid-token-123');
+    expect(mockGetUser).toHaveBeenCalledWith('valid-token-123');
   });
 
   it('should return 401 for invalid token', async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error('Invalid token'));
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('Invalid token') });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer bad-token' },
@@ -166,7 +163,7 @@ describe('AI Proxy: /api/ai/chat', () => {
   });
 
   it('should return 400 for malformed request body (missing message)', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'user-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer valid-token' },
@@ -181,7 +178,7 @@ describe('AI Proxy: /api/ai/chat', () => {
   });
 
   it('should return 400 for empty body', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'user-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer valid-token' },
@@ -215,7 +212,7 @@ describe('AI Proxy: /api/ai/analyze', () => {
   });
 
   it('should return 200 with analysis for valid token and data', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'admin-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } }, error: null });
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({
         leaderboard: [],
@@ -255,7 +252,7 @@ describe('AI Proxy: /api/ai/analyze', () => {
   });
 
   it('should return 401 for invalid token', async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error('Token expired'));
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('Token expired') });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer expired-token' },
@@ -270,7 +267,7 @@ describe('AI Proxy: /api/ai/analyze', () => {
   });
 
   it('should return 400 for missing userData in body', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'admin-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } }, error: null });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer valid-token' },
@@ -285,7 +282,7 @@ describe('AI Proxy: /api/ai/analyze', () => {
   });
 
   it('should return 400 for empty userData array', async () => {
-    mockVerifyIdToken.mockResolvedValue({ uid: 'admin-1' });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } }, error: null });
 
     const req = createMockReq({
       headers: { authorization: 'Bearer valid-token' },

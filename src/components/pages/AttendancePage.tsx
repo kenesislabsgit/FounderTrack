@@ -1,17 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile } from '../../types';
 import { EXPECTED_START_HOUR, DEFAULT_PAGE_SIZE } from '../../lib/constants';
 import { computeAvgShiftDuration, computeOnTimePercentage } from '../../services/statsService';
+import { mapAttendanceDbToRecord, mapUserDbToProfile } from '../../services/dataService';
 
 import { Clock, TrendingUp, Users, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -27,22 +20,30 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = isAdmin
-      ? query(collection(db, 'attendance'), orderBy('date', 'desc'))
-      : query(collection(db, 'attendance'), where('uid', '==', user.uid), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setRecords(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as AttendanceRecord)));
-      setLoading(false);
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'attendance',
+      {
+        filters: isAdmin ? [] : [{ column: 'uid', value: user.uid }],
+        orderBy: { column: 'date', ascending: false },
+      },
+      (data) => {
+        setRecords(data.map(mapAttendanceDbToRecord));
+        setLoading(false);
+      }
+    );
+    return unsubscribe;
   }, [user, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-      setAllUsers(snap.docs.map((d) => d.data() as UserProfile));
-    }, (err) => console.warn('Firestore listener error:', err.message));
-    return () => unsubscribe();
+    const unsubscribe = subscribeToTable<any>(
+      'users',
+      {},
+      (data) => {
+        setAllUsers(data.map(mapUserDbToProfile));
+      }
+    );
+    return unsubscribe;
   }, [isAdmin]);
 
   const avgShiftDuration = computeAvgShiftDuration(records);
@@ -55,7 +56,7 @@ export default function AttendancePage() {
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '—';
-    const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+    const date = new Date(timestamp);
     return format(date, 'hh:mm a');
   };
 
@@ -149,7 +150,6 @@ export default function AttendancePage() {
               <Users size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[hsl(var(--text-muted))]">Present Today</p>
               <p className="text-xl font-black text-[hsl(var(--text-primary))]">
                 {records.filter((r) => r.date === format(new Date(), 'yyyy-MM-dd') && r.status === 'present').length}
               </p>
@@ -158,7 +158,7 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Attendance Table — keep HTML table with glass class */}
+      {/* Attendance Table */}
       <div className="rounded-2xl glass overflow-hidden animate-slide-up-fade" style={{ animationDelay: '200ms' }}>
         <table className="w-full">
           <thead>

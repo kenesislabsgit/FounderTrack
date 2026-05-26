@@ -9,4 +9,9 @@ coverage/
 firebase-debug.log
 firestore-debug.log
 
+# Firebase migration artifacts (contain sensitive credentials)
+firebase-service-account.json
+kenesis-tracking-firebase-adminsdk-*.json
+firebase-export.json
+
 .vercel

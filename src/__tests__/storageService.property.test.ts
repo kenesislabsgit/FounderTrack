@@ -7,30 +7,26 @@ import * as fc from 'fast-check';
  * **Validates: Requirements 2.1**
  *
  * For any valid uid, date (YYYY-MM-DD), and filename,
- * uploadCheckInPhoto constructs path `check-in-photos/{uid}/{date}/{filename}`.
- *
- * Since uploadCheckInPhoto calls Firebase Storage (side effect), we mock
- * Firebase Storage and verify the path passed to `ref()`.
+ * uploadCheckInPhoto constructs path `{uid}/{date}/{filename}`.
  */
 
-// Mock firebase/storage before importing the module
-const mockRef = vi.fn();
-const mockUploadBytes = vi.fn().mockResolvedValue({});
-const mockGetDownloadURL = vi.fn().mockResolvedValue('https://example.com/photo.jpg');
-const mockGetStorage = vi.fn().mockReturnValue({});
-
-vi.mock('firebase/storage', () => ({
-  getStorage: () => mockGetStorage(),
-  ref: (...args: any[]) => mockRef(...args),
-  uploadBytes: (...args: any[]) => mockUploadBytes(...args),
-  getDownloadURL: (...args: any[]) => mockGetDownloadURL(...args),
+// Mock supabase client before importing
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    storage: {
+      from: () => ({
+        upload: vi.fn().mockResolvedValue({ data: {}, error: null }),
+        getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/photo.jpg' } }),
+      }),
+    },
+  },
 }));
 
 import { buildCheckInPhotoPath } from '../services/storageService';
 
 // --- Generators ---
 
-/** Generate a valid uid (alphanumeric, 1-28 chars like Firebase UIDs). */
+/** Generate a valid uid (alphanumeric, 1-28 chars like UIDs). */
 const uidArb = fc.stringMatching(/^[a-zA-Z0-9]{1,28}$/);
 
 /** Generate a valid YYYY-MM-DD date string. */
@@ -58,27 +54,23 @@ describe('Feature: production-hosting-readiness, Property 1: Storage path follow
   /**
    * **Validates: Requirements 2.1**
    */
-  it('should construct path matching check-in-photos/{uid}/{date}/{filename}', () => {
+  it('should construct path matching {uid}/{date}/{filename}', () => {
     fc.assert(
       fc.property(uidArb, dateArb, filenameArb, (uid, date, filename) => {
         const path = buildCheckInPhotoPath(uid, date, filename);
 
         // Path must match the exact convention
-        expect(path).toBe(`check-in-photos/${uid}/${date}/${filename}`);
+        expect(path).toBe(`${uid}/${date}/${filename}`);
 
-        // Path must start with the correct prefix
-        expect(path.startsWith('check-in-photos/')).toBe(true);
-
-        // Path must contain exactly 3 slashes (4 segments)
+        // Path must contain exactly 2 slashes (3 segments)
         const segments = path.split('/');
-        expect(segments).toHaveLength(4);
-        expect(segments[0]).toBe('check-in-photos');
-        expect(segments[1]).toBe(uid);
-        expect(segments[2]).toBe(date);
-        expect(segments[3]).toBe(filename);
+        expect(segments).toHaveLength(3);
+        expect(segments[0]).toBe(uid);
+        expect(segments[1]).toBe(date);
+        expect(segments[2]).toBe(filename);
 
         // Date segment must match YYYY-MM-DD pattern
-        expect(segments[2]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(segments[1]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       }),
       { numRuns: 100 },
     );

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase, subscribeToTable } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
 import { summarizeForAI } from '../../lib/summarize';
+import { mapAttendanceDbToRecord, mapReportDbToRecord, mapUserDbToProfile } from '../../services/dataService';
 
 import { Bot, Send, Trash2 } from 'lucide-react';
 
@@ -23,16 +23,21 @@ export default function BotPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onErr = (err: Error) => console.warn('Firestore listener error:', err.message);
-    const unsubs = [
-      onSnapshot(collection(db, 'users'), (snap) =>
-        setAllUsers(snap.docs.map((d) => d.data() as UserProfile)), onErr),
-      onSnapshot(collection(db, 'attendance'), (snap) =>
-        setAllAttendance(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AttendanceRecord))), onErr),
-      onSnapshot(collection(db, 'dailyReports'), (snap) =>
-        setAllReports(snap.docs.map((d) => ({ id: d.id, ...d.data() } as DailyReport))), onErr),
-    ];
-    return () => unsubs.forEach((u) => u());
+    const unsubUsers = subscribeToTable<any>('users', {}, (data) =>
+      setAllUsers(data.map(mapUserDbToProfile))
+    );
+    const unsubAttendance = subscribeToTable<any>('attendance', {}, (data) =>
+      setAllAttendance(data.map(mapAttendanceDbToRecord))
+    );
+    const unsubReports = subscribeToTable<any>('daily_reports', {}, (data) =>
+      setAllReports(data.map(mapReportDbToRecord))
+    );
+
+    return () => {
+      unsubUsers();
+      unsubAttendance();
+      unsubReports();
+    };
   }, []);
 
   useEffect(() => {
@@ -153,7 +158,7 @@ export default function BotPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input — keep as HTML input for onKeyDown support */}
+      {/* Input */}
       <div className="flex gap-3">
         <input
           type="text"

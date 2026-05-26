@@ -23,10 +23,11 @@ export function Header() {
   const title = routeTitles[pathname] || 'FounderTrack';
 
   return (
-    <header className="flex items-center justify-between border-b border-[hsl(var(--border-subtle))] bg-[hsl(var(--bg-surface))] px-6 py-4">
-      <h1 className="text-xl font-bold text-[hsl(var(--text-primary))]">
+    <header className="flex items-center justify-between bg-transparent px-6 py-5 relative">
+      <h1 className="text-xl font-extrabold text-[hsl(var(--text-primary))] font-heading">
         {title}
       </h1>
+      <div className="absolute bottom-0 left-6 right-6 accent-divider" />
     </header>
   );
 }

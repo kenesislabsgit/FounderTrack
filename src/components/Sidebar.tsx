@@ -64,11 +64,7 @@ const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
   cn(
     'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
     isActive
-      ? [
-          'bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)]',
-          'text-white',
-          'shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)]',
-        ].join(' ')
+      ? 'skeuo-button text-white neon-glow-gold'
       : 'text-[hsl(var(--text-secondary))] hover:bg-[hsla(var(--accent),0.1)] hover:text-[hsl(var(--text-primary))]',
   );
 
@@ -125,9 +121,7 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
         <div
           className={cn(
             'flex h-9 w-9 items-center justify-center rounded-lg font-bold text-lg',
-            'bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)]',
-            'text-white',
-            'shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)]',
+            'skeuo-button text-white neon-glow-gold'
           )}
         >
           K
@@ -168,25 +162,26 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
           <span>Settings</span>
         </NavLink>
 
-        {/* User section */}
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+        {/* User section - 3D Pressed Well with Golden Glistening Avatar and Breathing status */}
+        <div className="flex items-center gap-3 rounded-xl skeuo-well px-3 py-2.5 border border-[hsl(var(--border-subtle))]/30">
           <div className="relative">
-            <div className="h-9 w-9 rounded-full bg-[hsl(var(--bg-elevated))] flex items-center justify-center text-xs font-bold overflow-hidden border border-[hsl(var(--border-default))] text-[hsl(var(--text-primary))]">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] flex items-center justify-center text-xs font-black overflow-hidden border border-white/20 text-white shadow-[0_0_8px_hsla(40,95%,52%,0.4)]">
               {initials}
             </div>
+            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-[hsl(var(--bg-sidebar))] animate-breathe" />
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-medium text-[hsl(var(--text-primary))]">
+            <p className="truncate text-sm font-bold text-[hsl(var(--text-primary))]">
               {user?.displayName || 'User'}
             </p>
-            <p className="truncate text-[10px] text-[hsl(var(--text-muted))]">
+            <p className="truncate text-[10px] font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wide">
               {profile?.role || 'employee'}
             </p>
           </div>
           <button
             onClick={onLogout}
             aria-label="Log out"
-            className="rounded-lg p-1.5 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors"
+            className="rounded-lg p-1.5 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] transition-colors active:scale-90"
           >
             <LogOut size={16} aria-hidden="true" />
           </button>

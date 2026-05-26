@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { supabase } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 import { Settings, Bell, User, Shield, Moon, Sun } from 'lucide-react';
@@ -15,7 +14,13 @@ export default function SettingsPage() {
     if (!user || !profile || !editName.trim()) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'users', user.uid), { name: editName.trim() });
+      const { error } = await supabase
+        .from('users')
+        .update({ name: editName.trim() })
+        .eq('uid', user.uid);
+
+      if (error) throw error;
+
       setProfile((prev) => (prev ? { ...prev, name: editName.trim() } : prev));
     } catch (err) {
       console.error('Failed to update name:', err);

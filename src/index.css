@@ -6,7 +6,7 @@
 
 :root {
   /* Accent */
-  --accent: 36 95% 46%;
+  --accent: 36, 95%, 46%;
   --accent-foreground: 0 0% 100%;
 
   /* Backgrounds */
@@ -18,7 +18,7 @@
   /* Text */
   --text-primary: 225 15% 15%;
   --text-secondary: 225 10% 40%;
-  --text-muted: 225 8% 60%;
+  --text-muted: 225, 8%, 60%;
 
   /* Borders */
   --border-default: 225 10% 85%;
@@ -53,10 +53,10 @@
   --state-offline: 225 8% 80%;
 
   /* Semantic */
-  --danger: 0 72% 51%;
-  --success: 145 70% 42%;
-  --warning: 38 92% 50%;
-  --info: 210 80% 52%;
+  --danger: 0, 72%, 51%;
+  --success: 145, 70%, 42%;
+  --warning: 38, 92%, 50%;
+  --info: 210, 80%, 52%;
 
   /* Focus ring */
   --focus-ring: hsl(36 95% 46%);
@@ -69,7 +69,7 @@
 
 [data-theme="dark"] {
   /* Accent (Req 17.8) */
-  --accent: 40 95% 52%;
+  --accent: 40, 95%, 52%;
   --accent-foreground: 0 0% 10%;
 
   /* Backgrounds (Req 17.9) */
@@ -81,7 +81,7 @@
   /* Text */
   --text-primary: 0 0% 95%;
   --text-secondary: 0 0% 70%;
-  --text-muted: 0 0% 50%;
+  --text-muted: 0, 0%, 50%;
 
   /* Borders */
   --border-default: 225 10% 20%;
@@ -116,10 +116,10 @@
   --state-offline: 225 8% 25%;
 
   /* Semantic */
-  --danger: 0 72% 51%;
-  --success: 145 70% 50%;
-  --warning: 38 92% 50%;
-  --info: 210 80% 56%;
+  --danger: 0, 72%, 51%;
+  --success: 145, 70%, 50%;
+  --warning: 38, 92%, 50%;
+  --info: 210, 80%, 56%;
 
   /* Focus ring */
   --focus-ring: hsl(40 95% 52%);
@@ -142,9 +142,23 @@
     border: 1px solid var(--glass-border);
     box-shadow:
       inset 0 1px 0 0 var(--glass-highlight),
-      0 4px 16px var(--glass-shadow-1),
-      0 1px 4px var(--glass-shadow-2);
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.08),
+      0 8px 32px var(--glass-shadow-1),
+      0 2px 6px var(--glass-shadow-2),
+      0 0 1px 0 var(--glass-border);
     position: relative;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.05),
+      0 16px 40px -8px var(--glass-elevated-shadow-1),
+      0 4px 12px var(--glass-elevated-shadow-2),
+      0 0 15px hsla(var(--accent), 0.08),
+      0 0 1px 0 var(--glass-border) !important;
   }
 
   .glass::before {
@@ -165,9 +179,23 @@
     border: 1px solid var(--glass-elevated-border);
     box-shadow:
       inset 0 1px 0 0 var(--glass-elevated-highlight),
-      0 8px 32px var(--glass-elevated-shadow-1),
-      0 2px 8px var(--glass-elevated-shadow-2);
+      inset 0 -2px 3px 0 rgba(0, 0, 0, 0.12),
+      0 20px 48px -12px var(--glass-elevated-shadow-1),
+      0 4px 16px var(--glass-elevated-shadow-2),
+      0 0 0 1px var(--glass-elevated-border);
     position: relative;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-elevated:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      inset 0 1.5px 0 0 var(--glass-elevated-highlight),
+      inset 0 -2.5px 3px 0 rgba(0, 0, 0, 0.08),
+      0 28px 60px -16px var(--glass-elevated-shadow-1),
+      0 6px 20px var(--glass-elevated-shadow-2),
+      0 0 25px hsla(var(--accent), 0.12),
+      0 0 0 1px var(--glass-elevated-border) !important;
   }
 
   .glass-elevated::before {
@@ -185,8 +213,217 @@
     background: var(--inset-bg);
     border: 1px solid var(--inset-border);
     box-shadow:
-      inset 0 2px 4px var(--inset-shadow-outer),
-      inset 0 1px 2px var(--inset-shadow-inner);
+      inset 0 4px 8px var(--inset-shadow-outer),
+      inset 0 1px 3px var(--inset-shadow-inner),
+      0 1px 0 0 var(--glass-highlight);
+  }
+
+  /* Master 3D Skeuomorphic Glass Panel */
+  .skeuo-panel {
+    background: linear-gradient(135deg, var(--glass-bg) 0%, hsla(0, 0%, 100%, 0.01) 100%) !important;
+    backdrop-filter: blur(var(--glass-blur)) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow:
+      inset 0 1.5px 0 0 var(--glass-highlight),
+      inset 0 -2.5px 4px 0 rgba(0, 0, 0, 0.14),
+      0 16px 36px var(--glass-shadow-1),
+      0 2px 6px var(--glass-shadow-2),
+      0 0 0 1px var(--glass-border) !important;
+    border-radius: 1.25rem;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .skeuo-panel:hover {
+    transform: translateY(-1.5px);
+    box-shadow:
+      inset 0 1.5px 0 0 var(--glass-highlight),
+      inset 0 -2.5px 4px 0 rgba(0, 0, 0, 0.1),
+      0 24px 48px -8px var(--glass-elevated-shadow-1),
+      0 4px 12px var(--glass-elevated-shadow-2),
+      0 0 18px hsla(var(--accent), 0.12),
+      0 0 0 1px var(--glass-border) !important;
+  }
+
+  /* Master Sunken 3D Well */
+  .skeuo-well {
+    background: var(--inset-bg) !important;
+    border: 1px solid var(--inset-border) !important;
+    box-shadow:
+      inset 0 5px 10px var(--inset-shadow-outer),
+      inset 0 2px 4px var(--inset-shadow-inner),
+      0 1px 0.5px 0 var(--glass-highlight) !important;
+    border-radius: 1rem;
+    position: relative;
+  }
+
+  /* Premium Glowing and Ambient Shadow Effects */
+  .neon-glow-gold {
+    box-shadow: 
+      inset 0 1px 0 0 var(--glass-highlight),
+      0 0 24px 3px hsla(40, 95%, 52%, 0.16),
+      0 8px 24px var(--glass-shadow-1) !important;
+  }
+
+  .neon-glow-success {
+    box-shadow: 
+      0 0 24px 3px hsla(145, 70%, 50%, 0.18),
+      0 8px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .neon-glow-danger {
+    box-shadow: 
+      0 0 24px 3px hsla(0, 72%, 51%, 0.18),
+      0 8px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  /* Skeuomorphic tactile button */
+  .skeuo-button {
+    background: linear-gradient(to bottom, hsl(var(--accent)) 0%, hsla(var(--accent), 0.85) 100%) !important;
+    color: #0c0e14 !important; /* Premium dark slate for extreme contrast (8.7:1, AAA compliant) */
+    border: 1px solid hsla(var(--accent), 0.4) !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.35),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.22),
+      0 4px 8px -2px rgba(0, 0, 0, 0.35),
+      0 0 12px hsla(var(--accent), 0.2) !important;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.45); /* Skeuomorphic letterpress engraved emboss */
+  }
+
+  .skeuo-button:hover:not(:disabled) {
+    transform: translateY(-1.5px);
+    color: #0c0e14 !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.45),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+      0 8px 16px -4px rgba(0, 0, 0, 0.4),
+      0 0 20px hsla(var(--accent), 0.35) !important;
+  }
+
+  .skeuo-button:active:not(:disabled) {
+    transform: translateY(1.5px) !important;
+    box-shadow:
+      inset 0 2.5px 4px 0 rgba(0, 0, 0, 0.32),
+      0 1px 2px 0 rgba(0, 0, 0, 0.12) !important;
+  }
+
+  /* Luminous, glossy skeuomorphic progress fills */
+  .skeuo-progress-bar {
+    background: linear-gradient(to bottom, hsla(0, 0%, 100%, 0.4) 0%, transparent 50%, rgba(0, 0, 0, 0.2) 100%), 
+                linear-gradient(to right, hsl(42, 90%, 58%), hsl(36, 95%, 46%)) !important;
+    box-shadow: 
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25),
+      0 0 10px hsla(40, 95%, 52%, 0.45) !important;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .skeuo-progress-bar-success {
+    background: linear-gradient(to bottom, hsla(0, 0%, 100%, 0.4) 0%, transparent 50%, rgba(0, 0, 0, 0.2) 100%), 
+                linear-gradient(to right, hsl(145, 70%, 50%), hsl(145, 70%, 42%)) !important;
+    box-shadow: 
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25),
+      0 0 10px hsla(145, 70%, 50%, 0.45) !important;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* Tactile skeuomorphic icon container (sunken well with neon reflection) */
+  .skeuo-icon-well {
+    background: var(--inset-bg) !important;
+    border: 1px solid var(--inset-border) !important;
+    box-shadow:
+      inset 0 4px 8px rgba(0, 0, 0, 0.45),
+      inset 0 1.5px 3px rgba(0, 0, 0, 0.25),
+      0 1px 0.5px 0 var(--glass-highlight) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  .skeuo-icon-well:hover {
+    transform: scale(1.05) translateY(-0.5px);
+    box-shadow:
+      inset 0 3px 6px rgba(0, 0, 0, 0.35),
+      inset 0 1px 2px rgba(0, 0, 0, 0.15),
+      0 0 12px currentColor,
+      0 1px 0.5px 0 var(--glass-highlight) !important;
+  }
+
+  /* Glass glowing icon accent vector glow */
+  .skeuo-icon-glow {
+    filter: drop-shadow(0 0 4px currentColor) !important;
+    transition: filter 0.2s ease !important;
+  }
+
+  .skeuo-icon-well:hover .skeuo-icon-glow {
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 10px currentColor) !important;
+  }
+
+  /* Radial backing color profiles */
+  .skeuo-icon-bg-amber {
+    background: radial-gradient(circle, hsla(40, 95%, 52%, 0.16) 0%, transparent 75%) !important;
+    color: hsl(40, 95%, 52%) !important;
+  }
+  .skeuo-icon-bg-green {
+    background: radial-gradient(circle, hsla(145, 70%, 50%, 0.16) 0%, transparent 75%) !important;
+    color: hsl(145, 70%, 50%) !important;
+  }
+  .skeuo-icon-bg-blue {
+    background: radial-gradient(circle, hsla(210, 80%, 56%, 0.16) 0%, transparent 75%) !important;
+    color: hsl(210, 80%, 56%) !important;
+  }
+  .skeuo-icon-bg-purple {
+    background: radial-gradient(circle, hsla(270, 70%, 60%, 0.16) 0%, transparent 75%) !important;
+    color: hsl(270, 70%, 60%) !important;
+  }
+  .skeuo-icon-bg-red {
+    background: radial-gradient(circle, hsla(0, 72%, 51%, 0.16) 0%, transparent 75%) !important;
+    color: hsl(0, 72%, 51%) !important;
+  }
+
+  .skeuo-button-success {
+    background: linear-gradient(to bottom, hsl(var(--success)) 0%, hsla(var(--success), 0.85) 100%) !important;
+    color: #0c0e14 !important; /* Premium dark slate for WCAG AAA contrast */
+    border: 1px solid hsla(var(--success), 0.4) !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.35),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.22),
+      0 4px 8px -2px rgba(0, 0, 0, 0.35),
+      0 0 12px hsla(var(--success), 0.2) !important;
+    text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.45);
+  }
+
+  .skeuo-button-success:hover:not(:disabled) {
+    color: #0c0e14 !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.45),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+      0 8px 16px -4px rgba(0, 0, 0, 0.4),
+      0 0 20px hsla(var(--success), 0.35) !important;
+  }
+
+  .skeuo-button-danger {
+    background: linear-gradient(to bottom, hsl(0, 75%, 45%) 0%, hsl(0, 75%, 35%) 100%) !important; /* Richer ruby crimson for WCAG AA (5.8:1) */
+    color: white !important;
+    border: 1px solid hsla(var(--danger), 0.4) !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.35),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.22),
+      0 4px 8px -2px rgba(0, 0, 0, 0.35),
+      0 0 12px hsla(var(--danger), 0.2) !important;
+  }
+
+  .skeuo-button-danger:hover:not(:disabled) {
+    color: white !important;
+    box-shadow:
+      inset 0 1.5px 0 0 hsla(0, 0%, 100%, 0.45),
+      inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+      0 8px 16px -4px rgba(0, 0, 0, 0.4),
+      0 0 20px hsla(var(--danger), 0.35) !important;
   }
 }
 
@@ -343,7 +580,39 @@
 body {
   background-color: hsl(var(--bg-primary));
   color: hsl(var(--text-primary));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   transition: background-color 200ms ease, color 200ms ease;
+  position: relative;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: -15%;
+  left: -15%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, hsla(40, 95%, 52%, 0.08) 0%, transparent 75%);
+  z-index: -2;
+  pointer-events: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  bottom: -15%;
+  right: -15%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, hsla(36, 95%, 46%, 0.06) 0%, transparent 75%);
+  z-index: -2;
+  pointer-events: none;
 }
 
 /* ============================================================
@@ -402,16 +671,18 @@ body {
 /* --- Button: Primary (gold gradient 3D) --- */
 .button--primary {
   background: linear-gradient(to bottom, hsl(42, 90%, 58%), hsl(36, 95%, 46%)) !important;
-  color: white !important;
+  color: #0c0e14 !important; /* Dark slate for WCAG AAA contrast */
   font-weight: 600;
   box-shadow:
     inset 0 1px 0 0 hsla(50, 100%, 80%, 0.45),
     0 2px 4px rgba(0, 0, 0, 0.25) !important;
   border: none !important;
+  text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.45);
 }
 
 .button--primary:hover {
   transform: translateY(-0.5px);
+  color: #0c0e14 !important;
   box-shadow:
     inset 0 1px 0 0 hsla(50, 100%, 80%, 0.45),
     0 4px 12px rgba(0, 0, 0, 0.3),
@@ -447,7 +718,7 @@ body {
 
 /* --- Button: Danger (red gradient 3D) --- */
 .button--danger {
-  background: linear-gradient(to bottom, hsl(0, 72%, 58%), hsl(0, 72%, 48%)) !important;
+  background: linear-gradient(to bottom, hsl(0, 75%, 45%), hsl(0, 75%, 35%)) !important; /* Richer ruby crimson for WCAG AA (5.8:1) */
   color: white !important;
   font-weight: 600;
   box-shadow:
@@ -458,6 +729,7 @@ body {
 
 .button--danger:hover {
   transform: translateY(-0.5px);
+  color: white !important;
   box-shadow:
     inset 0 1px 0 0 hsla(0, 80%, 75%, 0.35),
     0 4px 12px rgba(0, 0, 0, 0.3) !important;
@@ -593,3 +865,126 @@ body {
 :focus {
   scroll-margin-top: 80px;
 }
+
+/* ============================================================
+   Skeuomorphic & 3D Interactive Button Overrides
+   ============================================================ */
+
+button[class*="from-[hsl(42"],
+button[class*="from-[hsl(145"],
+button[class*="from-[hsl(0"] {
+  border: 1px solid rgba(0, 0, 0, 0.16) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[class*="from-[hsl(42"]:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1.5px 0 0 hsla(50, 100%, 80%, 0.45),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+    0 8px 20px -4px rgba(0, 0, 0, 0.4),
+    0 0 20px hsla(40, 95%, 52%, 0.35) !important;
+}
+
+button[class*="from-[hsl(145"]:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1.5px 0 0 hsla(145, 80%, 70%, 0.35),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+    0 8px 20px -4px rgba(0, 0, 0, 0.4),
+    0 0 20px hsla(145, 70%, 50%, 0.3) !important;
+}
+
+button[class*="from-[hsl(0"]:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1.5px 0 0 hsla(0, 80%, 75%, 0.35),
+    inset 0 -1.5px 0 0 rgba(0, 0, 0, 0.15),
+    0 8px 20px -4px rgba(0, 0, 0, 0.4),
+    0 0 20px hsla(0, 72%, 58%, 0.3) !important;
+}
+
+button[class*="from-[hsl("]:active:not(:disabled) {
+  transform: translateY(1.5px) !important;
+  box-shadow:
+    inset 0 2.5px 4px 0 rgba(0, 0, 0, 0.32),
+    0 1px 2px 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ============================================================
+   Typography Prose Overrides for Rich Word Reports (contentEditable)
+   ============================================================ */
+
+.rich-report-content h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: hsl(var(--text-primary));
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px dashed hsla(var(--text-muted), 0.2);
+  padding-bottom: 0.15rem;
+}
+
+.rich-report-content p {
+  margin-top: 0.45rem;
+  margin-bottom: 0.45rem;
+  color: hsl(var(--text-secondary));
+  line-height: 1.6;
+}
+
+.rich-report-content strong {
+  font-weight: 700;
+  color: hsl(var(--text-primary));
+}
+
+.rich-report-content em {
+  font-style: italic;
+  color: hsl(var(--text-secondary));
+}
+
+.rich-report-content ul {
+  list-style-type: disc;
+  padding-left: 1.15rem;
+  margin-top: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.rich-report-content ol {
+  list-style-type: decimal;
+  padding-left: 1.15rem;
+  margin-top: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.rich-report-content li {
+  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
+  color: hsl(var(--text-secondary));
+  line-height: 1.5;
+}
+
+.rich-report-content blockquote {
+  border-left: 3px solid hsl(var(--accent));
+  padding-left: 0.75rem;
+  color: hsl(var(--text-muted));
+  font-style: italic;
+  margin: 0.6rem 0;
+}
+
+.rich-report-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid hsla(var(--text-muted), 0.15);
+  transition: transform 0.2s ease-in-out;
+  display: block;
+}
+
+.rich-report-content img:hover {
+  transform: scale(1.01);
+}
+
+
