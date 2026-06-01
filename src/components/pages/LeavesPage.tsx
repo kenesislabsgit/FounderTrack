@@ -22,7 +22,7 @@ export default function LeavesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [displayCount, setDisplayCount] = useState(DEFAULT_PAGE_SIZE);
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'founder';
+  const isAdmin = profile?.role === 'admin';
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -99,6 +99,12 @@ export default function LeavesPage() {
 
   const handleApprove = async (leave: LeaveRequest) => {
     if (!leave.id) return;
+
+    // Optimistic update - instant UI
+    setLeaves(prev => prev.map(l =>
+      l.id === leave.id ? { ...l, status: 'approved' } : l
+    ));
+
     try {
       await supabase
         .from('leave_requests')
@@ -106,11 +112,21 @@ export default function LeavesPage() {
         .eq('id', leave.id);
     } catch (err) {
       console.error('Failed to approve:', err);
+      // Rollback on error
+      setLeaves(prev => prev.map(l =>
+        l.id === leave.id ? { ...l, status: leave.status } : l
+      ));
     }
   };
 
   const handleReject = async (leave: LeaveRequest) => {
     if (!leave.id) return;
+
+    // Optimistic update - instant UI
+    setLeaves(prev => prev.map(l =>
+      l.id === leave.id ? { ...l, status: 'rejected' } : l
+    ));
+
     try {
       await supabase
         .from('leave_requests')
@@ -118,6 +134,10 @@ export default function LeavesPage() {
         .eq('id', leave.id);
     } catch (err) {
       console.error('Failed to reject:', err);
+      // Rollback on error
+      setLeaves(prev => prev.map(l =>
+        l.id === leave.id ? { ...l, status: leave.status } : l
+      ));
     }
   };
 

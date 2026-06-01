@@ -302,7 +302,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
           <p className="text-sm text-[hsl(var(--text-muted))] mt-1">Founder performance governance & secret ballot.</p>
         </div>
         <div className="flex items-center gap-3">
-          {profile?.role === 'founder' && currentCycle?.status === 'active' && (
+          {profile?.role === 'admin' && (!currentCycle || currentCycle?.status === 'active' || currentCycle?.status === 'completed') && (
             <button 
               onClick={handleStartVoting}
               className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-6 py-3 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all flex items-center gap-2"
@@ -311,7 +311,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
               Start Voting Window
             </button>
           )}
-          {profile?.role === 'founder' && currentCycle?.status === 'voting' && (
+          {profile?.role === 'admin' && currentCycle?.status === 'voting' && (
             <button 
               onClick={handleResolveCycle}
               className="rounded-xl bg-[hsl(var(--bg-elevated))] border border-[hsl(var(--border-default))] px-6 py-3 text-sm font-bold text-[hsl(var(--text-primary))] hover:bg-[hsla(var(--accent),0.05)] transition-all shadow-[inset_0_1px_0_0_hsla(0,0%,100%,0.08),0_1px_3px_rgba(0,0,0,0.12)] flex items-center gap-2"

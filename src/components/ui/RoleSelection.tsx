@@ -7,10 +7,20 @@
 
 export interface RoleSelectionProps {
   /** Called when the user picks a role */
-  onSelect: (role: 'employee' | 'intern') => void;
+  onSelect: (role: 'founder' | 'admin' | 'employee' | 'intern') => void;
 }
 
 const roles = [
+  {
+    id: 'founder' as const,
+    label: 'Founder',
+    desc: 'Full access to manage team, analytics, and all features.',
+  },
+  {
+    id: 'admin' as const,
+    label: 'Admin',
+    desc: 'Manage team, approve requests, and view analytics.',
+  },
   {
     id: 'employee' as const,
     label: 'Employee',
@@ -35,7 +45,7 @@ export function RoleSelection({ onSelect }: RoleSelectionProps) {
             Select your position to customize your experience.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {roles.map((role) => (
             <div
               key={role.id}

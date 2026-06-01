@@ -81,7 +81,11 @@ if (!admin.apps.length) {
   });
 }
 
+// Specify the exact named database that contains the data
 const db = admin.firestore();
+db.settings({
+  databaseId: 'ai-studio-51dcfb55-893e-4533-a86e-15b9ec265a0f'
+});
 
 // ─── Collection Mappings ─────────────────────────────────────────────────────
 /**

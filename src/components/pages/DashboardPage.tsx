@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase, subscribeToTable } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { AttendanceRecord, DailyReport, TodoItem } from '../../types';
 import { SHIFT_DURATION_HOURS } from '../../lib/constants';
 import { computeShiftProgress } from '../../services/statsService';
 import { uploadCheckInPhoto } from '../../services/storageService';
-import { mapAttendanceDbToRecord, mapReportDbToRecord } from '../../services/dataService';
 import RichTextEditor from '../ui/RichTextEditor';
 
 import {
@@ -74,10 +74,9 @@ function processImage(file: File): Promise<Blob> {
 
 export default function DashboardPage() {
   const { user, profile } = useAuthContext();
-  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
-  const [todayReport, setTodayReport] = useState<DailyReport | null>(null);
-  const [recentRecords, setRecentRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { attendance, reports, loading, stats } = useData();
+  const { todayRecord, todayReport, userAttendance } = stats;
+
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [newTask, setNewTask] = useState('');
@@ -91,79 +90,22 @@ export default function DashboardPage() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // 1. Subscribe to today's attendance record
+  // Sync report states with todayReport
   useEffect(() => {
-    if (!user) return;
-    const unsubscribe = subscribeToTable<any>(
-      'attendance',
-      {
-        filters: [
-          { column: 'uid', value: user.uid },
-          { column: 'date', value: today },
-        ],
-      },
-      (data) => {
-        if (data.length > 0) {
-          setTodayRecord(mapAttendanceDbToRecord(data[0]));
+    if (todayReport) {
+      if (todayReport.reportUrl) {
+        if (/^(https?:\/\/)/i.test(todayReport.reportUrl)) {
+          setReportUrl(todayReport.reportUrl);
+          setReportTab('link');
         } else {
-          setTodayRecord(null);
-        }
-        setLoading(false);
-      }
-    );
-    return unsubscribe;
-  }, [user, today]);
-
-  // 2. Subscribe to today's daily report
-  useEffect(() => {
-    if (!user) return;
-    const unsubscribe = subscribeToTable<any>(
-      'daily_reports',
-      {
-        filters: [
-          { column: 'uid', value: user.uid },
-          { column: 'date', value: today },
-        ],
-      },
-      (data) => {
-        if (data.length > 0) {
-          const record = mapReportDbToRecord(data[0]);
-          setTodayReport(record);
-          if (record.reportUrl) {
-            if (/^(https?:\/\/)/i.test(record.reportUrl)) {
-              setReportUrl(record.reportUrl);
-              setReportTab('link');
-            } else {
-              setReportText(record.reportUrl);
-              setReportTab('write');
-            }
-          }
-        } else {
-          setTodayReport(null);
+          setReportText(todayReport.reportUrl);
+          setReportTab('write');
         }
       }
-    );
-    return unsubscribe;
-  }, [user, today]);
+    }
+  }, [todayReport]);
 
-  // 3. Subscribe to recent shifts (last 7 days)
-  useEffect(() => {
-    if (!user) return;
-    const unsubscribe = subscribeToTable<any>(
-      'attendance',
-      {
-        filters: [{ column: 'uid', value: user.uid }],
-        orderBy: { column: 'date', ascending: false },
-        limit: 7,
-      },
-      (data) => {
-        setRecentRecords(data.map(mapAttendanceDbToRecord));
-      }
-    );
-    return unsubscribe;
-  }, [user]);
-
-  // 4. Update shift progress bar
+  // Update shift progress bar
   useEffect(() => {
     if (!todayRecord?.checkInTime || todayRecord?.checkOutTime) {
       setShiftProgress(todayRecord?.checkOutTime ? 100 : 0);
@@ -200,6 +142,18 @@ export default function DashboardPage() {
   const handleCheckIn = async () => {
     if (!user) return;
     setCheckingIn(true);
+
+    // Optimistic update - instant UI
+    const optimisticRecord: AttendanceRecord = {
+      id: 'temp-' + Date.now(),
+      uid: user.uid,
+      date: today,
+      checkInTime: new Date().toISOString(),
+      status: 'present',
+    };
+    const { setTodayRecord } = stats as any;
+    setTodayRecord?.(optimisticRecord);
+
     try {
       let checkInPhoto: string | undefined;
       if (selectedPhoto) {
@@ -219,6 +173,9 @@ export default function DashboardPage() {
       clearPhoto();
     } catch (err) {
       console.error('Check-in failed:', err);
+      alert('Check-in failed. Please try again.');
+      // Rollback
+      setTodayRecord?.(null);
     } finally {
       setCheckingIn(false);
     }
@@ -675,12 +632,12 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-xs text-[hsl(var(--text-muted))]">Days Worked</span>
-                <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{recentRecords.filter((r) => r.checkOutTime).length}</span>
+                <span className="text-sm font-bold text-[hsl(var(--text-primary))]">{userAttendance.filter((r) => r.checkOutTime).length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-xs text-[hsl(var(--text-muted))]">Total Hours</span>
                 <span className="text-sm font-bold text-[hsl(var(--text-primary))]">
-                  {recentRecords.reduce((acc, r) => acc + (r.totalHours || 0), 0).toFixed(1)}h
+                  {userAttendance.reduce((acc, r) => acc + (r.totalHours || 0), 0).toFixed(1)}h
                 </span>
               </div>
               <div className="flex justify-between">
@@ -694,7 +651,7 @@ export default function DashboardPage() {
           <div className="skeuo-panel rounded-2xl p-6 animate-slide-up-fade" style={{ animationDelay: '50ms' }}>
             <h3 className="text-sm font-bold text-[hsl(var(--text-primary))] uppercase tracking-widest mb-4">Recent Shifts</h3>
             <div className="space-y-3">
-              {recentRecords.slice(0, 5).map((record) => (
+              {userAttendance.slice(0, 5).map((record) => (
                 <div key={record.id} className="flex items-center justify-between py-2 border-b border-[hsl(var(--border-subtle))] last:border-0">
                   <div>
                     <p className="text-xs font-medium text-[hsl(var(--text-primary))]">{record.date}</p>
@@ -705,7 +662,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
               ))}
-              {recentRecords.length === 0 && (
+              {userAttendance.length === 0 && (
                 <p className="text-xs text-[hsl(var(--text-muted))] italic">No recent shifts</p>
               )}
             </div>

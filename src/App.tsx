@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
 import { useAuthContext } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/layout/Header';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -23,7 +24,9 @@ import TeamManagementPage from './components/pages/TeamManagementPage';
 import ChoppingBlockPage from './components/pages/ChoppingBlockPage';
 import SettingsPage from './components/pages/SettingsPage';
 
-
+function OutletWrapper() {
+  return <Outlet />;
+}
 
 /**
  * Layout shell wrapping all authenticated pages.
@@ -66,54 +69,52 @@ export default function App() {
 
           {/* Protected routes — require authentication */}
           <Route element={<ProtectedRoute />}>
-            {/* Routes wrapped in the app layout shell */}
-            <Route
-              path="/dashboard"
-              element={<AppLayout><DashboardPage /></AppLayout>}
-            />
-            <Route
-              path="/attendance"
-              element={<AppLayout><AttendancePage /></AppLayout>}
-            />
-            <Route
-              path="/leaves"
-              element={<AppLayout><LeavesPage /></AppLayout>}
-            />
-            <Route
-              path="/reports"
-              element={<AppLayout><ReportsPage /></AppLayout>}
-            />
-            <Route
-              path="/brainstorm"
-              element={<AppLayout><BrainstormPage /></AppLayout>}
-            />
-            <Route
-              path="/settings"
-              element={<AppLayout><SettingsPage /></AppLayout>}
-            />
+            <Route element={<DataProvider><OutletWrapper /></DataProvider>}>
+              {/* Routes wrapped in the app layout shell */}
+              <Route
+                path="/dashboard"
+                element={<AppLayout><DashboardPage /></AppLayout>}
+              />
+              <Route
+                path="/attendance"
+                element={<AppLayout><AttendancePage /></AppLayout>}
+              />
+              <Route
+                path="/leaves"
+                element={<AppLayout><LeavesPage /></AppLayout>}
+              />
+              <Route
+                path="/reports"
+                element={<AppLayout><ReportsPage /></AppLayout>}
+              />
+              <Route
+                path="/brainstorm"
+                element={<AppLayout><BrainstormPage /></AppLayout>}
+              />
+              <Route
+                path="/settings"
+                element={<AppLayout><SettingsPage /></AppLayout>}
+              />
 
-            {/* Admin-only routes */}
-            <Route element={<AdminRoute />}>
-              <Route
-                path="/analytics"
-                element={<AppLayout><AnalyticsPage /></AppLayout>}
-              />
-              <Route
-                path="/bot"
-                element={<AppLayout><BotPage /></AppLayout>}
-              />
-              <Route
-                path="/team-management"
-                element={<AppLayout><TeamManagementPage /></AppLayout>}
-              />
-              <Route
-                path="/chopping-block"
-                element={<AppLayout><ChoppingBlockPage /></AppLayout>}
-              />
+              {/* Admin-only routes */}
+              <Route element={<AdminRoute />}>
+                <Route
+                  path="/analytics"
+                  element={<AppLayout><AnalyticsPage /></AppLayout>}
+                />
+                <Route
+                  path="/team"
+                  element={<AppLayout><TeamManagementPage /></AppLayout>}
+                />
+                <Route
+                  path="/chopping-block"
+                  element={<AppLayout><ChoppingBlockPage /></AppLayout>}
+                />
+              </Route>
+
+              {/* Catch-all: redirect to dashboard */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
-
-            {/* Catch-all: redirect to dashboard */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
 
           {/* Unauthenticated catch-all */}

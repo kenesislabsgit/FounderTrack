@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase, subscribeToTable } from '../../lib/supabase';
+import { useState } from 'react';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { AttendanceRecord, UserProfile, DailyReport } from '../../types';
+import { useData } from '../../contexts/DataContext';
 import { computeAvgShiftDuration, computeAvgTaskCompletionRate } from '../../services/statsService';
 import { AIService, AIAnalysisResult } from '../../services/aiService';
-import { mapAttendanceDbToRecord, mapReportDbToRecord, mapUserDbToProfile } from '../../services/dataService';
 import { format } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -22,42 +20,11 @@ import {
 
 export default function AnalyticsPage() {
   const { user, profile } = useAuthContext();
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
-  const [allReports, setAllReports] = useState<DailyReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { users: allUsers, attendance: allAttendance, reports: allReports, loading } = useData();
+  
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let loaded = 0;
-    const checkLoaded = () => {
-      loaded++;
-      if (loaded >= 3) setLoading(false);
-    };
-
-    const unsubUsers = subscribeToTable<any>('users', {}, (data) => {
-      setAllUsers(data.map(mapUserDbToProfile));
-      checkLoaded();
-    });
-
-    const unsubAttendance = subscribeToTable<any>('attendance', {}, (data) => {
-      setAllAttendance(data.map(mapAttendanceDbToRecord));
-      checkLoaded();
-    });
-
-    const unsubReports = subscribeToTable<any>('daily_reports', {}, (data) => {
-      setAllReports(data.map(mapReportDbToRecord));
-      checkLoaded();
-    });
-
-    return () => {
-      unsubUsers();
-      unsubAttendance();
-      unsubReports();
-    };
-  }, []);
 
   const avgShiftDuration = computeAvgShiftDuration(allAttendance);
   const taskCompletionRate = computeAvgTaskCompletionRate(allReports);

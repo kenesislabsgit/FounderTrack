@@ -13,7 +13,7 @@ export function AdminRoute() {
     return null;
   }
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'founder')) {
     return <Navigate to="/dashboard" replace />;
   }
 

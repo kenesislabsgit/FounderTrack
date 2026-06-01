@@ -1,8 +1,8 @@
 import type { AttendanceRecord, DailyReport, LeaveRequest } from '../types';
 
 /**
- * Converts a value to a Date. Handles Firestore Timestamps (which have .toDate()),
- * plain Date objects, and numeric millisecond timestamps.
+ * Converts a value to a Date. Handles legacy Firestore Timestamps (which have .toDate()),
+ * plain Date objects, and numeric millisecond timestamps from Supabase/Postgres.
  */
 function toDate(value: unknown): Date | null {
   if (value == null) return null;

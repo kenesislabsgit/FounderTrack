@@ -33,6 +33,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ size?: number }>;
   adminOnly?: boolean;
+  founderOrAdmin?: boolean;
   hideForAdmin?: boolean;
 }
 
@@ -40,7 +41,7 @@ const coreItems: NavItem[] = [
   { path: '/dashboard', label: 'My Dashboard', icon: LayoutDashboard, hideForAdmin: true },
   { path: '/team-management', label: 'Team Management', icon: Users, adminOnly: true },
   { path: '/brainstorm', label: 'Brainstorm', icon: Lightbulb },
-  { path: '/chopping-block', label: 'Chopping Block', icon: Skull, adminOnly: true },
+  { path: '/chopping-block', label: 'Chopping Block', icon: Skull, founderOrAdmin: true },
 ];
 
 const teamOpsItems: NavItem[] = [
@@ -55,6 +56,7 @@ const teamOpsItems: NavItem[] = [
 function filterItems(items: NavItem[], role?: string): NavItem[] {
   return items.filter((item) => {
     if (item.adminOnly && role !== 'admin') return false;
+    if (item.founderOrAdmin && role !== 'admin' && role !== 'founder') return false;
     if (item.hideForAdmin && role === 'admin') return false;
     return true;
   });
@@ -107,10 +109,12 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
   const core = filterItems(coreItems, profile?.role);
   const teamOps = filterItems(teamOpsItems, profile?.role);
 
-  const initials = user?.displayName
-    ?.split(' ')
+  const initials = (profile?.name || user?.email || 'U')
+    .split(' ')
     .map((n: string) => n[0])
-    .join('') || 'U';
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
 
   const closeMobile = () => setMobileOpen(false);
 
@@ -172,7 +176,7 @@ export function Sidebar({ user, profile, onLogout }: SidebarProps) {
           </div>
           <div className="flex-1 overflow-hidden">
             <p className="truncate text-sm font-bold text-[hsl(var(--text-primary))]">
-              {user?.displayName || 'User'}
+              {profile?.name || 'User'}
             </p>
             <p className="truncate text-[10px] font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wide">
               {profile?.role || 'employee'}

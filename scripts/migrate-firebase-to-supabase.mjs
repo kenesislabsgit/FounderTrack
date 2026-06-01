@@ -139,9 +139,10 @@ async function upsertBatch(table, rows, conflictColumns, label) {
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
+    
     const { error } = await supabase
       .from(table)
-      .upsert(batch, { onConflict: conflictColumns, ignoreDuplicates: false });
+      .upsert(batch, { onConflict: conflictColumns, ignoreDuplicates: true });
 
     if (error) {
       log(`  ⚠️  Batch ${Math.floor(i / BATCH_SIZE) + 1} error: ${error.message}`, 'yellow');
@@ -162,40 +163,59 @@ async function upsertBatch(table, rows, conflictColumns, label) {
 // ─── Transformers ─────────────────────────────────────────────────────────────
 
 function transformUsers(fbUsers) {
-  return fbUsers.map((u) => ({
-    uid: u.uid,
-    name: u.name || u.displayName || 'Unknown',
-    email: u.email,
-    role: ['founder', 'admin', 'employee', 'intern'].includes(u.role) ? u.role : 'employee',
-    photo_url: u.photoURL || u.photo_url || null,
-    preferences: u.preferences || { emailNotifications: false, pushNotifications: false },
-  }));
+  const map = new Map();
+  fbUsers.forEach((u) => {
+    map.set(u.uid, {
+      uid: u.uid,
+      name: u.name || u.displayName || 'Unknown',
+      email: u.email,
+      role: ['founder', 'admin', 'employee', 'intern'].includes(u.role) ? u.role : 'employee',
+      photo_url: u.photoURL || u.photo_url || null,
+      preferences: u.preferences || { emailNotifications: false, pushNotifications: false },
+    });
+  });
+  return Array.from(map.values());
 }
 
 function transformAttendance(fbAttendance) {
-  return fbAttendance.map((a) => ({
-    uid: a.uid,
-    date: a.date,
-    check_in_time: a.checkInTime || a.check_in_time || null,
-    check_out_time: a.checkOutTime || a.check_out_time || null,
-    check_in_location: a.checkInLocation || a.check_in_location || null,
-    check_out_location: a.checkOutLocation || a.check_out_location || null,
-    check_in_photo: a.checkInPhoto || a.check_in_photo || null,
-    check_out_photo: a.checkOutPhoto || a.check_out_photo || null,
-    total_hours: a.totalHours || a.total_hours || null,
-    status: ['present', 'wfh', 'leave'].includes(a.status) ? a.status : 'present',
-  }));
+  const map = new Map();
+  fbAttendance.forEach((a) => {
+    const key = `${a.uid}_${a.date}`;
+    // Keep only one record per user+date to satisfy unique constraint
+    if (!map.has(key) || a.checkOutTime) { // Prefer records that are complete (have checkOutTime)
+      map.set(key, {
+        uid: a.uid,
+        date: a.date,
+        check_in_time: a.checkInTime || a.check_in_time || null,
+        check_out_time: a.checkOutTime || a.check_out_time || null,
+        check_in_location: a.checkInLocation || a.check_in_location || null,
+        check_out_location: a.checkOutLocation || a.check_out_location || null,
+        check_in_photo: a.checkInPhoto || a.check_in_photo || null,
+        check_out_photo: a.checkOutPhoto || a.check_out_photo || null,
+        total_hours: a.totalHours || a.total_hours || null,
+        status: ['present', 'wfh', 'leave'].includes(a.status) ? a.status : 'present',
+      });
+    }
+  });
+  return Array.from(map.values());
 }
 
 function transformDailyReports(fbReports) {
-  return fbReports.map((r) => ({
-    uid: r.uid,
-    date: r.date,
-    report_url: r.reportUrl || r.report_url || null,
-    todo_list: Array.isArray(r.todoList || r.todo_list)
-      ? (r.todoList || r.todo_list)
-      : [],
-  }));
+  const map = new Map();
+  fbReports.forEach((r) => {
+    const key = `${r.uid}_${r.date}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        uid: r.uid,
+        date: r.date,
+        report_url: r.reportUrl || r.report_url || null,
+        todo_list: Array.isArray(r.todoList || r.todo_list)
+          ? (r.todoList || r.todo_list)
+          : [],
+      });
+    }
+  });
+  return Array.from(map.values());
 }
 
 function transformLeaveRequests(fbLeaves) {

@@ -1,4 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { cn } from '../../lib/utils';
 
@@ -9,9 +8,9 @@ export interface AttendanceRowProps {
   employeeName?: string;
   /** Whether to show the employee name column */
   showEmployee?: boolean;
-  /** Raw check-in timestamp (Firestore Timestamp or Date-parseable value) */
+  /** Raw check-in timestamp (Date, string, or Firestore-style {seconds, nanoseconds} object) */
   checkInTime?: any;
-  /** Raw check-out timestamp (Firestore Timestamp or Date-parseable value) */
+  /** Raw check-out timestamp (Date, string, or Firestore-style {seconds, nanoseconds} object) */
   checkOutTime?: any;
   /** Pre-computed total hours for the shift */
   totalHours?: number;
@@ -29,8 +28,21 @@ const statusStyles: Record<string, string> = {
 
 function formatTime(timestamp: any): string {
   if (!timestamp) return '—';
-  const date =
-    timestamp instanceof Timestamp ? timestamp.toDate() : new Date(timestamp);
+  
+  let date: Date;
+  
+  if (timestamp instanceof Date) {
+    date = timestamp;
+  } else if (typeof timestamp === 'object' && 'seconds' in timestamp) {
+    // Handle Firestore-style timestamp objects {seconds, nanoseconds} without the library
+    date = new Date(timestamp.seconds * 1000);
+  } else if (typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
+    date = timestamp.toDate();
+  } else {
+    date = new Date(timestamp);
+  }
+
+  if (isNaN(date.getTime())) return '—';
   return format(date, 'hh:mm a');
 }
 

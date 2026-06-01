@@ -39,60 +39,72 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   useEffect(() => {
-    // 1. Fetch initial session
-    const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const sbUser = session?.user ?? null;
-        const compUser = makeCompatibleUser(sbUser);
-        setUser(compUser);
+    let mounted = true;
 
-        if (sbUser) {
-          await fetchOrCreateProfile(sbUser);
-        }
-      } catch (error) {
-        console.error('Error initializing Supabase Auth:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Failsafe: Ensure loading is cleared after 5 seconds no matter what
+    const failsafe = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 5000);
 
-    initAuth();
-
-    // 2. Listen to session shifts
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const sbUser = session?.user ?? null;
+    // Helper to fetch session and profile
+    const syncAuth = async (sbUser: SupabaseUser | null) => {
+      if (!mounted) return;
       const compUser = makeCompatibleUser(sbUser);
       setUser(compUser);
 
       if (sbUser) {
-        setLoading(true);
-        await fetchOrCreateProfile(sbUser);
-        setLoading(false);
+        try {
+          await fetchOrCreateProfile(sbUser);
+        } catch (err) {
+          console.error('[Auth] Critical error syncing profile:', err);
+        } finally {
+          if (mounted) setLoading(false);
+        }
       } else {
         setProfile(null);
         setShowRoleSelection(false);
-        setLoading(false);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // 1. Initial Sync
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncAuth(session?.user ?? null);
+    });
+
+    // 2. Listen to session shifts
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        syncAuth(session?.user ?? null);
+      } else if (event === 'SIGNED_OUT') {
+        syncAuth(null);
       }
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(failsafe);
       subscription.unsubscribe();
     };
   }, [makeCompatibleUser]);
 
   const fetchOrCreateProfile = async (sbUser: SupabaseUser) => {
+    console.log('[Auth] fetchOrCreateProfile called for user:', sbUser.id, sbUser.email);
     try {
-      const { data: userDoc, error } = await supabase
+      // 1. Search by UID first
+      let { data: userDoc, error: readError } = await supabase
         .from('users')
         .select('*')
         .eq('uid', sbUser.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching profile from public.users:', error.message);
-        return;
+      console.log('[Auth] User doc from DB:', userDoc);
+      if (readError) {
+        console.error('[Auth] DB Read Error:', readError.message);
       }
+
+      // 2. If not found by UID, just create new profile (skip UID migration check)
+      // Old Firebase users will be handled by the SQL migration script
 
       if (userDoc) {
         const profileData: UserProfile = {
@@ -104,58 +116,73 @@ export function useAuth(): UseAuthReturn {
           preferences: userDoc.preferences || undefined,
         };
         setProfile(profileData);
-        if (!profileData.role) {
-          setShowRoleSelection(true);
-        }
+        setShowRoleSelection(!profileData.role || profileData.role.trim() === '');
       } else {
-        // Atomic first-user-becomes-admin check using settings key uniqueness constraint
+        // Not found by UID, try by email (Firebase migration case)
+        const { data: emailMatch } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', sbUser.email)
+          .maybeSingle();
+
+        if (emailMatch) {
+          console.log('[Auth] Found profile by email (old Firebase user)');
+          const profileData: UserProfile = {
+            uid: emailMatch.uid,
+            name: emailMatch.name,
+            email: emailMatch.email,
+            role: emailMatch.role,
+            photoURL: emailMatch.photo_url || undefined,
+            preferences: emailMatch.preferences || undefined,
+          };
+          setProfile(profileData);
+          setShowRoleSelection(false);
+          return;
+        }
+
+        // Truly new user - create profile
         const firstProfile: UserProfile = {
           uid: sbUser.id,
-          name: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || 'Admin',
+          name: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || 'User',
           email: sbUser.email || '',
           role: 'admin',
           photoURL: sbUser.user_metadata?.avatar_url || sbUser.user_metadata?.picture || undefined,
         };
 
-        // Try to fetch the sentinel first
-        const { data: sentinelDoc } = await supabase
+        // Attempt to claim admin spot
+        const { error: insertSentinelErr } = await supabase
           .from('settings')
-          .select('*')
-          .eq('id', 'admin-assigned')
-          .maybeSingle();
+          .insert({
+            id: 'admin-assigned',
+            value: { uid: sbUser.id, assignedAt: new Date().toISOString() },
+          });
 
-        if (!sentinelDoc) {
-          // Attempt to atomically claim the admin spot by inserting the unique settings record
-          const { error: insertSentinelErr } = await supabase
-            .from('settings')
-            .insert({
-              id: 'admin-assigned',
-              value: { uid: sbUser.id, assignedAt: new Date().toISOString() },
-            });
+        const isNewAdmin = !insertSentinelErr;
+        const targetRole = isNewAdmin ? 'admin' : 'employee';
 
-          if (!insertSentinelErr) {
-            // Successfully claimed! Write user profile as admin
-            const { error: insertUserErr } = await supabase.from('users').insert({
-              uid: sbUser.id,
-              name: firstProfile.name,
-              email: firstProfile.email,
-              role: 'admin',
-              photo_url: firstProfile.photoURL || null,
-            });
+        const { error: insertUserErr } = await supabase.from('users').insert({
+          uid: sbUser.id,
+          name: firstProfile.name,
+          email: firstProfile.email,
+          role: targetRole,
+          photo_url: firstProfile.photoURL || null,
+        });
 
-            if (!insertUserErr) {
-              setProfile(firstProfile);
-              setShowRoleSelection(false);
-              return;
-            }
-          }
+        if (!insertUserErr) {
+          const finalProfile = { ...firstProfile, role: targetRole };
+          setProfile(finalProfile);
+          // Only show role selection if we couldn't determine a role (shouldn't happen with default 'employee')
+          setShowRoleSelection(false);
+          return;
+        } else {
+          console.error('[Auth] Failed to create user profile:', insertUserErr.message);
+          // If insert fails (likely 409 email conflict), show role selection as a fallback
+          // handleRoleSelect will deal with the upsert/conflict
+          setShowRoleSelection(true);
         }
-
-        // Admin spot is already claimed or insert failed -> trigger standard role selection
-        setShowRoleSelection(true);
       }
     } catch (err) {
-      console.error('Error during fetchOrCreateProfile:', err);
+      console.error('[Auth] fetchOrCreateProfile exception:', err);
     }
   };
 
@@ -182,6 +209,8 @@ export function useAuth(): UseAuthReturn {
   const handleRoleSelect = useCallback(
     async (selectedRole: 'founder' | 'admin' | 'employee' | 'intern') => {
       if (!user) return;
+      setLoading(true);
+
       const newProfile: UserProfile = {
         uid: user.id,
         name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
@@ -189,6 +218,7 @@ export function useAuth(): UseAuthReturn {
         role: selectedRole,
         photoURL: user.user_metadata?.avatar_url || user.user_metadata?.picture || undefined,
       };
+
       try {
         const { error } = await supabase.from('users').upsert({
           uid: user.id,
@@ -196,15 +226,17 @@ export function useAuth(): UseAuthReturn {
           email: newProfile.email,
           role: selectedRole,
           photo_url: newProfile.photoURL || null,
-        });
+        }, { onConflict: 'uid' });
 
         if (error) throw error;
 
         setProfile(newProfile);
         setShowRoleSelection(false);
       } catch (err) {
-        console.error('Error setting role:', err);
-        throw err;
+        console.error('[Auth] Error setting role:', err);
+        alert('Failed to save role. Please try again or contact admin.');
+      } finally {
+        setLoading(false);
       }
     },
     [user],

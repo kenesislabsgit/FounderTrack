@@ -79,7 +79,10 @@ export function subscribeToTable<T>(
 
     const { data, error } = await query;
     if (error) {
-      console.warn(`Error fetching real-time data for ${table}:`, error.message);
+      console.error(`[Supabase] Error fetching initial data for ${table}:`, error.message);
+      // Even on error, we must invoke the callback to clear loading states in components.
+      // We pass the cached version if it exists, otherwise an empty array.
+      callback((globalQueryCache.get(cacheKey) || []) as T[]);
       return;
     }
 
@@ -99,7 +102,18 @@ export function subscribeToTable<T>(
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table },
-      () => {
+      (payload) => {
+        // Optimization: Only re-fetch if the changed row matches our filters
+        // This prevents the "thundering herd" where User A's update causes User B to re-fetch
+        if (options.filters && options.filters.length > 0) {
+          const matches = options.filters.every(filter => {
+            const val = payload.new[filter.column] ?? payload.old[filter.column];
+            return val === filter.value;
+          });
+          if (!matches) return;
+        }
+        
+        console.log(`[Realtime] ${table} updated, re-fetching...`);
         fetchData();
       }
     )
