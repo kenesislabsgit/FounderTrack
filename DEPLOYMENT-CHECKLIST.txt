@@ -1,0 +1,40 @@
+DEPLOYMENT CHECKLIST
+===================
+
+✅ BEFORE DEPLOYING:
+
+1. Environment Variables (.env on production):
+   ✅ VITE_SUPABASE_URL
+   ✅ VITE_SUPABASE_ANON_KEY
+   ✅ SUPABASE_SERVICE_ROLE_KEY (if using API routes)
+   ✅ GEMINI_API_KEY (for AI features)
+
+2. Supabase Configuration:
+   ✅ Auth → URL Configuration → Site URL = production URL
+   ✅ Auth → Redirect URLs → Add production URL
+   ✅ Storage → check-in-photos bucket created
+   ✅ Storage → RLS policies enabled (FIX-STORAGE-RLS.sql)
+   ✅ Database → Realtime enabled for: attendance, daily_reports, leave_requests, review_cycles
+
+3. Database Scripts Run:
+   ✅ MIGRATE-ALL-UIDS.sql (UID migration)
+   ✅ FIX-RLS-FOR-NEW-USERS.sql (new user registration)
+   ✅ FIX-ADMIN-ONLY-LEAVES.sql (leave permissions)
+   ✅ cleanup-duplicates.sql (remove duplicates)
+
+4. Build & Deploy:
+   ✅ npm run build (no errors)
+   ✅ Test production build locally: npm run preview
+   ✅ Deploy to Vercel/Netlify
+   ✅ Set environment variables in hosting platform
+
+5. Post-Deploy Testing:
+   ✅ Login with Google OAuth
+   ✅ Check-in with photo
+   ✅ Leave request approval
+   ✅ Realtime updates work
+   ✅ All pages load (dashboard, leaves, analytics, chopping block)
+
+CURRENT ISSUE:
+- OAuth redirecting to localhost:3000
+- FIX: Update Supabase Auth URL config to production domain

@@ -183,6 +183,12 @@ export default function DashboardPage() {
 
   const handleCheckOut = async () => {
     if (!todayRecord?.id) return;
+
+    // Confirmation dialog
+    if (!confirm('Are you sure you want to check out? You cannot check in again today.')) {
+      return;
+    }
+
     setCheckingOut(true);
     try {
       const checkIn = new Date(todayRecord.checkInTime);
@@ -288,6 +294,18 @@ export default function DashboardPage() {
 
   const isCheckedIn = !!todayRecord?.checkInTime && !todayRecord?.checkOutTime;
   const isCheckedOut = !!todayRecord?.checkOutTime;
+
+  // Check if report editing is allowed (before 11 PM IST)
+  const isReportEditingAllowed = () => {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const istTime = new Date(now.getTime() + istOffset);
+    const istHour = istTime.getUTCHours();
+    return istHour < 23; // Before 11 PM IST
+  };
+
+  const canEditReport = isReportEditingAllowed();
+  const canAddTasks = !isCheckedOut; // Can only add tasks before checkout
 
   if (loading) {
     return (
@@ -520,23 +538,30 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                placeholder="Add a task..."
-                className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30"
-              />
-              <button
-                onClick={handleAddTask}
-                disabled={!newTask.trim()}
-                className="rounded-xl skeuo-button px-3 py-1.5 text-xs font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
+            {canAddTasks && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                  placeholder="Add a task..."
+                  className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30"
+                />
+                <button
+                  onClick={handleAddTask}
+                  disabled={!newTask.trim()}
+                  className="rounded-xl skeuo-button px-3 py-1.5 text-xs font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            )}
+            {!canAddTasks && (
+              <p className="text-xs text-[hsl(var(--text-muted))] text-center py-2">
+                Task editing disabled after checkout
+              </p>
+            )}
           </div>
 
           {/* Daily Report Word Editor and URL Panel */}
@@ -572,19 +597,28 @@ export default function DashboardPage() {
               </button>
             </div>
 
+            {!canEditReport && (
+              <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-3 mb-4">
+                <p className="text-xs text-yellow-800 font-medium">
+                  ⏰ Report editing is closed after 11 PM IST
+                </p>
+              </div>
+            )}
+
             {reportTab === 'write' ? (
               /* DIRECT WORD EDITOR */
               <div className="space-y-4">
                 <RichTextEditor
                   value={reportText}
-                  onChange={setReportText}
+                  onChange={canEditReport ? setReportText : () => {}}
                   uid={user?.uid || ''}
                   date={today}
-                  placeholder="Draft your daily report document here... Use standard styling controls or click Templates to inject standard structures instantly."
+                  placeholder={canEditReport ? "Draft your daily report document here... Use standard styling controls or click Templates to inject standard structures instantly." : "Report editing closed after 11 PM IST"}
+                  disabled={!canEditReport}
                 />
                 <button
                   onClick={handleSaveReportText}
-                  disabled={!reportText.trim() || reportText === '<p></p>' || reportText === '<br>'}
+                  disabled={!canEditReport || !reportText.trim() || reportText === '<p></p>' || reportText === '<br>'}
                   className="w-full rounded-xl skeuo-button py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 neon-glow-gold"
                 >
                   Save Report Entry
@@ -598,12 +632,13 @@ export default function DashboardPage() {
                     type="url"
                     value={reportUrl}
                     onChange={(e) => setReportUrl(e.target.value)}
-                    placeholder="Paste your daily report URL..."
-                    className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30"
+                    placeholder={canEditReport ? "Paste your daily report URL..." : "Report editing closed after 11 PM IST"}
+                    disabled={!canEditReport}
+                    className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <button
                     onClick={handleSaveReportUrl}
-                    disabled={!reportUrl.trim()}
+                    disabled={!canEditReport || !reportUrl.trim()}
                     className="rounded-xl skeuo-button px-5 py-2.5 text-sm font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold shrink-0"
                   >
                     Save Link
