@@ -54,10 +54,11 @@ const teamOpsItems: NavItem[] = [
 
 
 function filterItems(items: NavItem[], role?: string): NavItem[] {
+  const isAdmin = role === 'admin' || role === 'founder';
   return items.filter((item) => {
-    if (item.adminOnly && role !== 'admin') return false;
-    if (item.founderOrAdmin && role !== 'admin' && role !== 'founder') return false;
-    if (item.hideForAdmin && role === 'admin') return false;
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.founderOrAdmin && !isAdmin) return false;
+    if (item.hideForAdmin && isAdmin) return false;
     return true;
   });
 }

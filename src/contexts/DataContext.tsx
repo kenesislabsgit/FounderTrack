@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { useAuthContext } from './AuthContext';
 import { subscribeToTable } from '../lib/supabase';
 import { AttendanceRecord, DailyReport, UserProfile } from '../types';
@@ -10,7 +10,7 @@ import {
 
 interface DataContextType {
   attendance: AttendanceRecord[];
-  reports: DailyReport[];
+  reports: DailyReport[]
   users: UserProfile[];
   loading: boolean;
   // Stats helpers to prevent redundant re-computations in components
@@ -29,27 +29,43 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loadingStates, setLoadingStates] = useState({
-    attendance: true,
-    reports: true,
-    users: true,
-  });
+
+  // Track which streams have delivered at least one payload.
+  // Start as false only when user is present; otherwise skip loading state.
+  const [loaded, setLoaded] = useState({ attendance: false, reports: false, users: false });
+
+  // Keep a ref to the current role so we can restart subscriptions when it changes
+  // without re-running the entire effect unnecessarily.
+  const roleRef = useRef<string | undefined>(undefined);
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // 1. Global Subscriptions (Once per App Lifecycle)
+  // Reset loaded state when user changes (login/logout)
+  useEffect(() => {
+    if (!user) {
+      setAttendance([]);
+      setReports([]);
+      setUsers([]);
+      setLoaded({ attendance: false, reports: false, users: false });
+    }
+  }, [user?.uid]);
+
+  // 1. Global Subscriptions — restart when role changes (employee → admin promotion etc.)
   useEffect(() => {
     if (!user) return;
 
-    // Admin sees everything, users see only their own data (RLS also enforces this)
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'founder';
+    const role = profile?.role;
+    roleRef.current = role;
+
+    // Admin and founder see all data; employees/interns only see their own (RLS also enforces this)
+    const isAdmin = role === 'admin' || role === 'founder';
 
     const unsubUsers = subscribeToTable<any>(
       'users', 
       {}, 
       (data) => {
         setUsers(data.map(mapUserDbToProfile));
-        setLoadingStates(prev => ({ ...prev, users: false }));
+        setLoaded(prev => prev.users ? prev : { ...prev, users: true });
       }
     );
 
@@ -58,7 +74,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       isAdmin ? {} : { filters: [{ column: 'uid', value: user.uid }] },
       (data) => {
         setAttendance(data.map(mapAttendanceDbToRecord));
-        setLoadingStates(prev => ({ ...prev, attendance: false }));
+        setLoaded(prev => prev.attendance ? prev : { ...prev, attendance: true });
       }
     );
 
@@ -67,7 +83,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       isAdmin ? {} : { filters: [{ column: 'uid', value: user.uid }] },
       (data) => {
         setReports(data.map(mapReportDbToRecord));
-        setLoadingStates(prev => ({ ...prev, reports: false }));
+        setLoaded(prev => prev.reports ? prev : { ...prev, reports: true });
       }
     );
 
@@ -76,7 +92,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       unsubAttendance();
       unsubReports();
     };
-  }, [user, profile?.role]);
+  }, [user?.uid, profile?.role]);
 
   // 2. Compute common derivatives once for all components
   const stats = useMemo(() => {
@@ -93,11 +109,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [attendance, reports, user, today]);
 
+  // Only show loading if user is present AND none of the streams have delivered yet.
+  // Once any data arrives, components can render progressively.
+  const loading = !!user && !loaded.attendance && !loaded.reports && !loaded.users;
+
   const value = {
     attendance,
     reports,
     users,
-    loading: loadingStates.attendance || loadingStates.reports || loadingStates.users,
+    loading,
     stats,
   };
 
