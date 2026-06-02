@@ -77,6 +77,9 @@ export default function DashboardPage() {
   const { attendance, reports, loading, stats } = useData();
   const { todayRecord, todayReport, userAttendance } = stats;
 
+  const [localTodayRecord, setLocalTodayRecord] = useState<AttendanceRecord | null>(null);
+  const [localTodayReport, setLocalTodayReport] = useState<DailyReport | null>(null);
+
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [newTask, setNewTask] = useState('');
@@ -90,7 +93,16 @@ export default function DashboardPage() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Sync report states with todayReport
+  // Sync optimistic states with context changes from Supabase subscription
+  useEffect(() => {
+    setLocalTodayRecord(todayRecord);
+  }, [todayRecord]);
+
+  useEffect(() => {
+    setLocalTodayReport(todayReport);
+  }, [todayReport]);
+
+  // Sync input elements with todayReport on mount or when backend data loads
   useEffect(() => {
     if (todayReport) {
       if (todayReport.reportUrl) {
@@ -107,18 +119,18 @@ export default function DashboardPage() {
 
   // Update shift progress bar
   useEffect(() => {
-    if (!todayRecord?.checkInTime || todayRecord?.checkOutTime) {
-      setShiftProgress(todayRecord?.checkOutTime ? 100 : 0);
+    if (!localTodayRecord?.checkInTime || localTodayRecord?.checkOutTime) {
+      setShiftProgress(localTodayRecord?.checkOutTime ? 100 : 0);
       return;
     }
     const updateProgress = () => {
-      const checkIn = new Date(todayRecord.checkInTime);
+      const checkIn = new Date(localTodayRecord.checkInTime!);
       setShiftProgress(computeShiftProgress(checkIn, SHIFT_DURATION_HOURS));
     };
     updateProgress();
     const interval = setInterval(updateProgress, 60000);
     return () => clearInterval(interval);
-  }, [todayRecord]);
+  }, [localTodayRecord]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,16 +155,16 @@ export default function DashboardPage() {
     if (!user) return;
     setCheckingIn(true);
 
-    // Optimistic update - instant UI
+    // Optimistic update - instant UI feedback
     const optimisticRecord: AttendanceRecord = {
       id: 'temp-' + Date.now(),
       uid: user.uid,
       date: today,
       checkInTime: new Date(),
       status: 'present',
+      ...(photoPreview && { checkInPhoto: photoPreview }),
     };
-    const { setTodayRecord } = stats as any;
-    setTodayRecord?.(optimisticRecord);
+    setLocalTodayRecord(optimisticRecord);
 
     try {
       let checkInPhoto: string | undefined;
@@ -162,27 +174,41 @@ export default function DashboardPage() {
         checkInPhoto = await uploadCheckInPhoto(user.uid, today, blob, filename);
       }
 
-      await supabase.from('attendance').insert({
+      const { data, error } = await supabase.from('attendance').insert({
         uid: user.uid,
         date: today,
         check_in_time: new Date().toISOString(),
         status: 'present',
         ...(checkInPhoto && { check_in_photo: checkInPhoto }),
-      });
+      }).select();
+
+      if (error) throw error;
+
+      if (data && data[0]) {
+        // Sync with db record fields
+        setLocalTodayRecord({
+          id: data[0].id,
+          uid: data[0].uid,
+          date: data[0].date,
+          checkInTime: data[0].check_in_time ? new Date(data[0].check_in_time) : undefined,
+          status: data[0].status,
+          checkInPhoto: data[0].check_in_photo || undefined,
+        });
+      }
 
       clearPhoto();
     } catch (err) {
       console.error('Check-in failed:', err);
       alert('Check-in failed. Please try again.');
-      // Rollback
-      setTodayRecord?.(null);
+      // Rollback to previous state
+      setLocalTodayRecord(todayRecord);
     } finally {
       setCheckingIn(false);
     }
   };
 
   const handleCheckOut = async () => {
-    if (!todayRecord?.id) return;
+    if (!localTodayRecord?.id) return;
 
     // Confirmation dialog
     if (!confirm('Are you sure you want to check out? You cannot check in again today.')) {
@@ -190,19 +216,32 @@ export default function DashboardPage() {
     }
 
     setCheckingOut(true);
-    try {
-      const checkIn = new Date(todayRecord.checkInTime);
-      const totalHours = (Date.now() - checkIn.getTime()) / (1000 * 60 * 60);
 
-      await supabase
+    // Optimistic update
+    const checkIn = new Date(localTodayRecord.checkInTime!);
+    const totalHours = (Date.now() - checkIn.getTime()) / (1000 * 60 * 60);
+    const optimisticOut: AttendanceRecord = {
+      ...localTodayRecord,
+      checkOutTime: new Date(),
+      totalHours: Math.round(totalHours * 100) / 100,
+    };
+    setLocalTodayRecord(optimisticOut);
+
+    try {
+      const { error } = await supabase
         .from('attendance')
         .update({
           check_out_time: new Date().toISOString(),
           total_hours: Math.round(totalHours * 100) / 100,
         })
-        .eq('id', todayRecord.id);
+        .eq('id', localTodayRecord.id);
+
+      if (error) throw error;
     } catch (err) {
       console.error('Check-out failed:', err);
+      alert('Check-out failed. Please try again.');
+      // Rollback
+      setLocalTodayRecord(todayRecord);
     } finally {
       setCheckingOut(false);
     }
@@ -211,89 +250,167 @@ export default function DashboardPage() {
   const handleAddTask = async () => {
     if (!user || !newTask.trim()) return;
     const task: TodoItem = { task: newTask.trim(), completed: false };
+    const updatedTasks = [...(localTodayReport?.todoList || []), task];
+
+    // Optimistic update
+    const optimisticReport: DailyReport = localTodayReport
+      ? { ...localTodayReport, todoList: updatedTasks }
+      : { uid: user.uid, date: today, todoList: updatedTasks };
+    setLocalTodayReport(optimisticReport);
+    setNewTask('');
+
     try {
-      if (todayReport?.id) {
-        await supabase
+      if (localTodayReport?.id) {
+        const { error } = await supabase
           .from('daily_reports')
           .update({
-            todo_list: [...(todayReport.todoList || []), task],
+            todo_list: updatedTasks,
           })
-          .eq('id', todayReport.id);
+          .eq('id', localTodayReport.id);
+        if (error) throw error;
       } else {
-        await supabase.from('daily_reports').insert({
-          uid: user.uid,
-          date: today,
-          todo_list: [task],
-        });
+        const { data, error } = await supabase
+          .from('daily_reports')
+          .insert({
+            uid: user.uid,
+            date: today,
+            todo_list: updatedTasks,
+          })
+          .select();
+        if (error) throw error;
+        if (data && data[0]) {
+          setLocalTodayReport({
+            id: data[0].id,
+            uid: data[0].uid,
+            date: data[0].date,
+            todoList: data[0].todo_list,
+          });
+        }
       }
-      setNewTask('');
     } catch (err) {
       console.error('Failed to add task:', err);
+      // Rollback
+      setLocalTodayReport(todayReport);
     }
   };
 
   const handleToggleTask = async (index: number) => {
-    if (!todayReport?.id || !todayReport.todoList) return;
-    const updated = [...todayReport.todoList];
+    if (!localTodayReport?.id || !localTodayReport.todoList) return;
+    const updated = [...localTodayReport.todoList];
     updated[index] = { ...updated[index], completed: !updated[index].completed };
+
+    // Optimistic update
+    setLocalTodayReport({ ...localTodayReport, todoList: updated });
+
     try {
-      await supabase
+      const { error } = await supabase
         .from('daily_reports')
         .update({ todo_list: updated })
-        .eq('id', todayReport.id);
+        .eq('id', localTodayReport.id);
+      if (error) throw error;
     } catch (err) {
       console.error('Failed to toggle task:', err);
+      // Rollback
+      setLocalTodayReport(todayReport);
     }
   };
 
   const handleSaveReportUrl = async () => {
     if (!user || !reportUrl.trim()) return;
+
+    // Optimistic update
+    const optimisticReport: DailyReport = localTodayReport
+      ? { ...localTodayReport, reportUrl: reportUrl.trim() }
+      : { uid: user.uid, date: today, reportUrl: reportUrl.trim(), todoList: [] };
+    setLocalTodayReport(optimisticReport);
+
     try {
-      if (todayReport?.id) {
-        await supabase
+      if (localTodayReport?.id) {
+        const { error } = await supabase
           .from('daily_reports')
           .update({ report_url: reportUrl.trim() })
-          .eq('id', todayReport.id);
+          .eq('id', localTodayReport.id);
+        if (error) throw error;
       } else {
-        await supabase.from('daily_reports').insert({
-          uid: user.uid,
-          date: today,
-          report_url: reportUrl.trim(),
-          todo_list: [],
-        });
+        const { data, error } = await supabase
+          .from('daily_reports')
+          .insert({
+            uid: user.uid,
+            date: today,
+            report_url: reportUrl.trim(),
+            todo_list: [],
+          })
+          .select();
+        if (error) throw error;
+        if (data && data[0]) {
+          setLocalTodayReport({
+            id: data[0].id,
+            uid: data[0].uid,
+            date: data[0].date,
+            reportUrl: data[0].report_url,
+            todoList: data[0].todo_list,
+          });
+        }
       }
+      alert('Report link saved successfully!');
     } catch (err) {
       console.error('Failed to save report URL:', err);
+      setLocalTodayReport(todayReport);
+      alert('Failed to save report link.');
     }
   };
 
   const handleSaveReportText = async () => {
     if (!user || !reportText.trim()) return;
+
+    // Optimistic update
+    const optimisticReport: DailyReport = localTodayReport
+      ? { ...localTodayReport, reportUrl: reportText.trim() }
+      : { uid: user.uid, date: today, reportUrl: reportText.trim(), todoList: [] };
+    setLocalTodayReport(optimisticReport);
+
     try {
-      if (todayReport?.id) {
-        await supabase
+      if (localTodayReport?.id) {
+        const { error } = await supabase
           .from('daily_reports')
           .update({ report_url: reportText.trim() })
-          .eq('id', todayReport.id);
+          .eq('id', localTodayReport.id);
+        if (error) throw error;
       } else {
-        await supabase.from('daily_reports').insert({
-          uid: user.uid,
-          date: today,
-          report_url: reportText.trim(),
-          todo_list: [],
-        });
+        const { data, error } = await supabase
+          .from('daily_reports')
+          .insert({
+            uid: user.uid,
+            date: today,
+            report_url: reportText.trim(),
+            todo_list: [],
+          })
+          .select();
+        if (error) throw error;
+        if (data && data[0]) {
+          setLocalTodayReport({
+            id: data[0].id,
+            uid: data[0].uid,
+            date: data[0].date,
+            reportUrl: data[0].report_url,
+            todoList: data[0].todo_list,
+          });
+        }
       }
+      alert('Report entry saved successfully!');
     } catch (err) {
       console.error('Failed to save report text:', err);
+      setLocalTodayReport(todayReport);
+      alert('Failed to save report entry.');
     }
   };
 
-  const todoList = todayReport?.todoList || [];
+  const todoList = localTodayReport?.todoList || [];
   const completedCount = todoList.filter((t) => t.completed).length;
   const taskProgress = todoList.length > 0 ? (completedCount / todoList.length) * 100 : 0;
 
-  const isCheckedIn = !!todayRecord?.checkInTime && !todayRecord?.checkOutTime;
-  const isCheckedOut = !!todayRecord?.checkOutTime;
+  const isCheckedIn = !!localTodayRecord?.checkInTime && !localTodayRecord?.checkOutTime;
+  const isCheckedOut = !!localTodayRecord?.checkOutTime;
 
   // Check if report editing is allowed (before 11 PM IST)
   const isReportEditingAllowed = () => {
@@ -351,6 +468,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8 space-y-6">
+      {/* Welcome Banner */}
       <div>
         <h2 className="text-2xl font-bold text-[hsl(var(--text-primary))]">
           Welcome back, {profile?.name?.split(' ')[0] || 'there'} 👋
@@ -397,23 +515,23 @@ export default function DashboardPage() {
                   style={{ width: `${shiftProgress}%` }}
                 />
               </div>
-              {todayRecord?.checkInTime && (
+              {localTodayRecord?.checkInTime && (
                 <p className="text-[10px] text-[hsl(var(--text-muted))] mt-2">
                   Checked in at{' '}
-                  {format(new Date(todayRecord.checkInTime), 'hh:mm a')}
-                  {todayRecord.checkOutTime && (
+                  {format(new Date(localTodayRecord.checkInTime), 'hh:mm a')}
+                  {localTodayRecord.checkOutTime && (
                     <>
                       {' · Checked out at '}
-                      {format(new Date(todayRecord.checkOutTime), 'hh:mm a')}
+                      {format(new Date(localTodayRecord.checkOutTime), 'hh:mm a')}
                     </>
                   )}
-                  {todayRecord.totalHours && ` · ${todayRecord.totalHours.toFixed(1)}h total`}
+                  {localTodayRecord.totalHours && ` · ${localTodayRecord.totalHours.toFixed(1)}h total`}
                 </p>
               )}
             </div>
 
             {/* Check-In Photo */}
-            {!todayRecord && (
+            {!localTodayRecord && (
               <div className="mb-4">
                 <input
                   ref={fileInputRef}
@@ -451,11 +569,11 @@ export default function DashboardPage() {
             )}
 
             {/* Display check-in photo */}
-            {todayRecord?.checkInPhoto && (
+            {localTodayRecord?.checkInPhoto && (
               <div className="mb-4">
                 <p className="text-[10px] text-[hsl(var(--text-muted))] mb-1">Check-in Photo</p>
                 <img
-                  src={todayRecord.checkInPhoto}
+                  src={localTodayRecord.checkInPhoto}
                   alt="Check-in photo"
                   className="h-24 w-24 rounded-xl object-cover border border-[hsl(var(--border-subtle))]"
                 />
@@ -464,7 +582,7 @@ export default function DashboardPage() {
 
             {/* Check In/Out Buttons */}
             <div className="flex gap-3">
-              {!todayRecord ? (
+              {!localTodayRecord ? (
                 <button
                   onClick={handleCheckIn}
                   disabled={checkingIn}
@@ -483,7 +601,7 @@ export default function DashboardPage() {
                   {checkingOut ? 'Checking Out...' : 'Check Out'}
                 </button>
               ) : (
-                <div className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--bg-elevated))] py-3 text-sm font-bold text-[hsl(var(--text-muted))]">
+                <div className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[hsl(var(--bg-elevated))] py-3 text-sm font-bold text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/25 shadow-inner">
                   <CheckCircle2 size={16} />
                   Shift Completed
                 </div>
@@ -629,13 +747,13 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <input
-                    type="url"
-                    value={reportUrl}
-                    onChange={(e) => setReportUrl(e.target.value)}
-                    placeholder={canEditReport ? "Paste your daily report URL..." : "Report editing closed after 11 PM IST"}
-                    disabled={!canEditReport}
-                    className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+                     type="url"
+                     value={reportUrl}
+                     onChange={(e) => setReportUrl(e.target.value)}
+                     placeholder={canEditReport ? "Paste your daily report URL..." : "Report editing closed after 11 PM IST"}
+                     disabled={!canEditReport}
+                     className="flex-1 rounded-xl skeuo-well px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))]/20 text-[hsl(var(--text-primary))] placeholder:text-[hsl(var(--text-muted))] border border-[hsl(var(--border-subtle))]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                   />
                   <button
                     onClick={handleSaveReportUrl}
                     disabled={!canEditReport || !reportUrl.trim()}
@@ -644,9 +762,9 @@ export default function DashboardPage() {
                     Save Link
                   </button>
                 </div>
-                {todayReport?.reportUrl && /^(https?:\/\/)/i.test(todayReport.reportUrl) && (
+                {localTodayReport?.reportUrl && /^(https?:\/\/)/i.test(localTodayReport.reportUrl) && (
                   <a
-                    href={todayReport.reportUrl}
+                    href={localTodayReport.reportUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-2 text-xs text-[hsl(var(--accent))] hover:underline"

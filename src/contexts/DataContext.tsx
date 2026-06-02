@@ -109,9 +109,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, [attendance, reports, user, today]);
 
-  // Only show loading if user is present AND none of the streams have delivered yet.
-  // Once any data arrives, components can render progressively.
-  const loading = !!user && !loaded.attendance && !loaded.reports && !loaded.users;
+  // Show loading if user is present AND any of the streams have not finished their initial fetch.
+  // This prevents layout shift flashes where a page mounts with partial empty lists.
+  const loading = !!user && (!loaded.attendance || !loaded.reports || !loaded.users);
 
   const value = {
     attendance,
