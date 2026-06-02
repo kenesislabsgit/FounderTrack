@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {/* Time Filter Capsule */}
-          <div className="flex gap-1 p-1 rounded-xl bg-[hsla(var(--border-subtle),0.25)] border border-[hsl(var(--border-subtle))]/20 shadow-sm shrink-0">
+          <div className="flex gap-1 p-1 rounded-xl skeuo-well border border-[hsl(var(--border-subtle))]/10 shrink-0">
             {([
               { value: '7', label: '7 Days' },
               { value: '30', label: '30 Days' },
@@ -223,7 +223,7 @@ export default function AnalyticsPage() {
                 onClick={() => setTimeFilter(filter.value)}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                   timeFilter === filter.value
-                    ? 'bg-[hsl(var(--bg-surface))] text-[hsl(var(--text-primary))] shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[hsl(var(--border-default))]'
+                    ? 'skeuo-button shadow-sm'
                     : 'text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]'
                 }`}
               >
@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
           <button
             onClick={handleRunAIAnalysis}
             disabled={aiLoading || allUsers.length === 0}
-            className="rounded-xl bg-gradient-to-b from-[hsl(42,90%,58%)] to-[hsl(36,95%,46%)] px-5 py-2 text-sm font-bold text-white shadow-[inset_0_1px_0_0_hsla(50,100%,80%,0.45),0_2px_4px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-[0.5px] disabled:opacity-50 flex items-center gap-2"
+            className="rounded-xl skeuo-button px-5 py-2 text-sm font-bold disabled:opacity-50 flex items-center gap-2 neon-glow-gold"
           >
             {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {aiLoading ? 'Analyzing...' : 'Run AI Analysis'}
@@ -334,12 +334,12 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Modern Skeuomorphic Tab Switcher */}
-      <div className="flex gap-2 p-1.5 rounded-2xl bg-[hsla(var(--border-subtle),0.25)] border border-[hsl(var(--border-subtle))]/20 max-w-md shadow-inner">
+      <div className="flex gap-1 p-1 rounded-xl skeuo-well max-w-md border border-[hsl(var(--border-subtle))]/10">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex-1 py-2 text-center rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
+          className={`flex-1 py-2 text-center rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
             activeTab === 'overview'
-              ? 'bg-gradient-to-b from-[hsl(var(--accent))] to-[hsla(var(--accent),0.85)] text-[#0c0e14] shadow-[0_2px_6px_rgba(0,0,0,0.2)] font-black'
+              ? 'skeuo-button shadow-sm'
               : 'text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]'
           }`}
         >
@@ -347,9 +347,9 @@ export default function AnalyticsPage() {
         </button>
         <button
           onClick={() => setActiveTab('team')}
-          className={`flex-1 py-2 text-center rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
+          className={`flex-1 py-2 text-center rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
             activeTab === 'team'
-              ? 'bg-gradient-to-b from-[hsl(var(--accent))] to-[hsla(var(--accent),0.85)] text-[#0c0e14] shadow-[0_2px_6px_rgba(0,0,0,0.2)] font-black'
+              ? 'skeuo-button shadow-sm'
               : 'text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]'
           }`}
         >
@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
                       <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsla(var(--border-subtle), 0.35)" vertical={false} />
                   <XAxis
                     dataKey="label"
                     stroke="hsl(var(--text-muted))"
@@ -468,7 +468,7 @@ export default function AnalyticsPage() {
               <div className="flex-1 h-44 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyTrendsData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsla(var(--border-subtle), 0.35)" vertical={false} />
                     <XAxis dataKey="label" stroke="hsl(var(--text-muted))" fontSize={10} tickLine={false} axisLine={false} />
                     <YAxis stroke="hsl(var(--text-muted))" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip content={<CustomTooltip />} />
@@ -507,7 +507,7 @@ export default function AnalyticsPage() {
                       layout="vertical"
                       margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" horizontal={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsla(var(--border-subtle), 0.35)" horizontal={false} />
                       <XAxis type="number" stroke="hsl(var(--text-muted))" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis
                         dataKey="name"
@@ -543,7 +543,7 @@ export default function AnalyticsPage() {
                 <div className="flex-grow h-60">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={activeUsersTasksData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsla(var(--border-subtle), 0.35)" vertical={false} />
                       <XAxis dataKey="name" stroke="hsl(var(--text-muted))" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="hsl(var(--text-muted))" fontSize={11} tickLine={false} axisLine={false} />
                       <Tooltip content={<CustomTooltip />} />
