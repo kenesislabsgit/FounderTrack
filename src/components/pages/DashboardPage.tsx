@@ -148,7 +148,7 @@ export default function DashboardPage() {
       id: 'temp-' + Date.now(),
       uid: user.uid,
       date: today,
-      checkInTime: new Date().toISOString(),
+      checkInTime: new Date(),
       status: 'present',
     };
     const { setTodayRecord } = stats as any;

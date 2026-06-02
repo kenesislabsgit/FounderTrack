@@ -2,12 +2,33 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+// Support both plain (server-side) and VITE_ prefixed (shared with frontend) env vars.
+// In Vercel, add SUPABASE_URL and SUPABASE_ANON_KEY as plain env vars for the serverless runtime.
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  '';
+
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  '';
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Validate critical env vars at cold-start to surface misconfiguration fast
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('[analyze] SUPABASE_URL or SUPABASE_ANON_KEY env var is missing!');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// ─── CORS Headers ─────────────────────────────────────────────────────────────
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
 async function verifyToken(req: VercelRequest): Promise<any> {
   const authHeader = req.headers.authorization;
@@ -28,6 +49,15 @@ async function verifyToken(req: VercelRequest): Promise<any> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    Object.entries(CORS_HEADERS).forEach(([key, val]) => res.setHeader(key, val));
+    return res.status(204).end();
+  }
+
+  // Set CORS headers on all responses
+  Object.entries(CORS_HEADERS).forEach(([key, val]) => res.setHeader(key, val));
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -39,14 +69,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // 2. Validate request body
+  // 2. Validate and sanitize request body
   const { userData } = req.body || {};
   if (!userData || !Array.isArray(userData) || userData.length === 0) {
-    return res.status(400).json({ error: 'Invalid request' });
+    return res.status(400).json({ error: 'Invalid request: userData array is required' });
+  }
+
+  // Guard against abuse: cap at 500 user entries max
+  if (userData.length > 500) {
+    return res.status(400).json({ error: 'Too many records: limit is 500 users per analysis' });
   }
 
   // 3. Call Gemini API using server-side key
   if (!GEMINI_API_KEY) {
+    console.error('[analyze] GEMINI_API_KEY is not set');
     return res.status(502).json({ error: 'AI service unavailable' });
   }
 
@@ -101,7 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const parsed = JSON.parse(response.text || '{}');
     return res.status(200).json(parsed);
-  } catch {
+  } catch (err) {
+    console.error('[analyze] Gemini API error:', err);
     return res.status(502).json({ error: 'AI service unavailable' });
   }
 }

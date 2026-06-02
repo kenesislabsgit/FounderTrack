@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, clearQueryCache } from '../lib/supabase';
 import { UserProfile } from '../types';
+
+/** Roles that new users are allowed to self-select. Admin/founder must be assigned by an existing admin. */
+const SELF_SELECT_ROLES: Array<'employee' | 'intern'> = ['employee', 'intern'];
 
 export type CompatibleUser = SupabaseUser & {
   uid: string;
@@ -158,7 +161,7 @@ export function useAuth(): UseAuthReturn {
           });
 
         const isNewAdmin = !insertSentinelErr;
-        const targetRole = isNewAdmin ? 'admin' : 'employee';
+        const targetRole: UserProfile['role'] = isNewAdmin ? 'admin' : 'employee';
 
         const { error: insertUserErr } = await supabase.from('users').insert({
           uid: sbUser.id,
@@ -203,6 +206,9 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   const logout = useCallback(() => {
+    // Clear the in-memory query cache before signing out to prevent
+    // the next user's session from seeing this user's data.
+    clearQueryCache();
     supabase.auth.signOut().catch((err) => console.error('Logout error:', err));
   }, []);
 
@@ -211,11 +217,18 @@ export function useAuth(): UseAuthReturn {
       if (!user) return;
       setLoading(true);
 
+      // Security: Only allow safe self-select roles. Admin/founder must be
+      // assigned by an existing admin via TeamManagementPage.
+      const safeRole: 'employee' | 'intern' = SELF_SELECT_ROLES.includes(selectedRole as any)
+        ? (selectedRole as 'employee' | 'intern')
+        : 'employee';
+
+
       const newProfile: UserProfile = {
         uid: user.id,
         name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
         email: user.email || '',
-        role: selectedRole,
+        role: safeRole,
         photoURL: user.user_metadata?.avatar_url || user.user_metadata?.picture || undefined,
       };
 
@@ -224,7 +237,7 @@ export function useAuth(): UseAuthReturn {
           uid: user.id,
           name: newProfile.name,
           email: newProfile.email,
-          role: selectedRole,
+          role: safeRole,
           photo_url: newProfile.photoURL || null,
         }, { onConflict: 'uid' });
 

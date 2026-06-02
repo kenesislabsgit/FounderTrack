@@ -14,8 +14,8 @@ export interface AttendanceRecord {
   id?: string;
   uid: string;
   date: string; // YYYY-MM-DD
-  checkInTime?: any; // Firestore Timestamp
-  checkOutTime?: any; // Firestore Timestamp
+  checkInTime?: Date;  // ISO datetime string from Supabase, mapped to Date
+  checkOutTime?: Date; // ISO datetime string from Supabase, mapped to Date
   checkInLocation?: { lat: number; lng: number };
   checkOutLocation?: { lat: number; lng: number };
   checkInPhoto?: string;
@@ -66,14 +66,14 @@ export interface BrainstormIdea {
   description: string;
   category: 'idea' | 'todo' | 'discussion';
   status: 'open' | 'in-progress' | 'completed' | 'archived';
-  createdAt: any; // Firestore Timestamp
+  createdAt: string; // ISO datetime string from Supabase
   upvotes: string[]; // List of UIDs
 }
 
 export interface ReviewCycle {
   id?: string;
-  startDate: any;
-  endDate: any;
+  startDate: string; // ISO datetime string from Supabase
+  endDate: string;   // ISO datetime string from Supabase
   status: 'active' | 'voting' | 'completed';
   underperformerUid?: string;
   isTie?: boolean;
@@ -90,7 +90,7 @@ export interface Ballot {
     rank: number;
     reason: string;
   }[];
-  createdAt: any;
+  createdAt: string; // ISO datetime string from Supabase
 }
 
 export type SessionState = 'active' | 'on-break' | 'away' | 'offline';

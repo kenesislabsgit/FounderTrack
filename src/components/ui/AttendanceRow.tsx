@@ -8,10 +8,10 @@ export interface AttendanceRowProps {
   employeeName?: string;
   /** Whether to show the employee name column */
   showEmployee?: boolean;
-  /** Raw check-in timestamp (Date, string, or Firestore-style {seconds, nanoseconds} object) */
-  checkInTime?: any;
-  /** Raw check-out timestamp (Date, string, or Firestore-style {seconds, nanoseconds} object) */
-  checkOutTime?: any;
+  /** Check-in timestamp — ISO string or Date from Supabase */
+  checkInTime?: Date | string | null;
+  /** Check-out timestamp — ISO string or Date from Supabase */
+  checkOutTime?: Date | string | null;
   /** Pre-computed total hours for the shift */
   totalHours?: number;
   /** Attendance status */
@@ -26,20 +26,25 @@ const statusStyles: Record<string, string> = {
   leave: 'bg-yellow-100 text-yellow-700',
 };
 
-function formatTime(timestamp: any): string {
-  if (!timestamp) return '—';
-  
+function formatTime(timestamp: Date | string | null | undefined): string {
+  if (timestamp == null) return '—'; // handles both null and undefined
+
   let date: Date;
-  
+
   if (timestamp instanceof Date) {
     date = timestamp;
-  } else if (typeof timestamp === 'object' && 'seconds' in timestamp) {
-    // Handle Firestore-style timestamp objects {seconds, nanoseconds} without the library
-    date = new Date(timestamp.seconds * 1000);
-  } else if (typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
-    date = timestamp.toDate();
-  } else {
+  } else if (typeof timestamp === 'string') {
     date = new Date(timestamp);
+  } else {
+    // Legacy object shape (Firestore-style): { seconds: number, nanoseconds: number }
+    const ts = timestamp as unknown as Record<string, unknown>;
+    if (typeof ts['seconds'] === 'number') {
+      date = new Date(ts['seconds'] as number * 1000);
+    } else if (typeof (ts as any).toDate === 'function') {
+      date = (ts as any).toDate();
+    } else {
+      date = new Date(String(timestamp));
+    }
   }
 
   if (isNaN(date.getTime())) return '—';

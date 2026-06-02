@@ -65,8 +65,8 @@ vi.mock('@google/genai', () => {
 // ---------------------------------------------------------------------------
 // Import handlers after mocks are set up
 // ---------------------------------------------------------------------------
-import chatHandler from '../../../../api/ai/chat';
-import analyzeHandler from '../../../../api/ai/analyze';
+import chatHandler from '../../../api/ai/chat';
+import analyzeHandler from '../../../api/ai/analyze';
 
 // ---------------------------------------------------------------------------
 // Helper: create mock VercelRequest / VercelResponse
@@ -84,12 +84,20 @@ function createMockRes(): any {
   const res: any = {
     statusCode: 200,
     body: null,
+    headers: {} as Record<string, string>,
     status(code: number) {
       res.statusCode = code;
       return res;
     },
     json(data: any) {
       res.body = data;
+      return res;
+    },
+    end() {
+      return res;
+    },
+    setHeader(key: string, val: string) {
+      res.headers[key] = val;
       return res;
     },
   };

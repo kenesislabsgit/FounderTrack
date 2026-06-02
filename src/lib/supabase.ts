@@ -15,6 +15,15 @@ export interface SubscriptionFilter {
 const globalQueryCache = new Map<string, any[]>();
 
 /**
+ * Clears the entire in-memory query cache.
+ * Must be called on user sign-out to prevent data leakage between different
+ * users sharing the same browser session or tab.
+ */
+export function clearQueryCache(): void {
+  globalQueryCache.clear();
+}
+
+/**
  * Subscribes to real-time changes on a Supabase table.
  * Fetches the initial data set matching the filters, sorting, and limits,
  * and sets up a realtime postgres change channel to re-fetch and invoke the callback on updates.

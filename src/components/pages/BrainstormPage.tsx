@@ -32,7 +32,7 @@ export default function BrainstormPage() {
             description: i.description,
             category: i.category,
             status: i.status,
-            createdAt: new Date(i.created_at),
+            createdAt: i.created_at as string,
             upvotes: i.upvotes || [],
           }))
         );

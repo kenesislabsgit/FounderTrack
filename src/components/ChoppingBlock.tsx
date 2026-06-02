@@ -46,8 +46,8 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
       (data) => {
         const cycles = data.map((c) => ({
           id: c.id,
-          startDate: new Date(c.start_date),
-          endDate: new Date(c.end_date),
+          startDate: c.start_date as string,
+          endDate: c.end_date as string,
           status: c.status,
           underperformerUid: c.underperformer_uid || undefined,
           isTie: c.is_tie,
@@ -80,7 +80,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
             cycleId: data[0].cycle_id,
             voterUid: data[0].voter_uid,
             rankings: data[0].rankings,
-            createdAt: new Date(data[0].created_at),
+            createdAt: data[0].created_at as string,
           });
         } else {
           setMyBallot(null);
@@ -108,7 +108,7 @@ export function ChoppingBlock({ user, profile, allUsers }: ChoppingBlockProps) {
             cycleId: d.cycle_id,
             voterUid: d.voter_uid,
             rankings: d.rankings,
-            createdAt: new Date(d.created_at),
+            createdAt: d.created_at as string,
           }))
         );
       }

@@ -1,9 +1,10 @@
 -- ==========================================================
 -- FounderTrack Supabase Corrective Security & Logic Patch
 -- ==========================================================
--- This patch resolves two critical RLS/logic bugs identified during code audit:
+-- This patch resolves critical RLS/logic bugs identified during code audit:
 -- 1. Settings Bootstrapping: Allows the first authenticated user to claim the admin spot.
 -- 2. Brainstorm Board Upvotes: Allows regular employees to upvote brainstorm ideas securely.
+-- 3. Role Escalation Prevention: Blocks users from self-promoting their own role.
 
 -- ----------------------------------------------------------
 -- 1. Fix Settings Bootstrapping Policy
@@ -70,3 +71,43 @@ create policy "Allow update access to brainstorm_ideas for authenticated" on pub
   for update using (
     auth.role() = 'authenticated'
   );
+
+-- ----------------------------------------------------------
+-- 3. Prevent Role Self-Escalation (CRITICAL Security Fix)
+-- ----------------------------------------------------------
+-- This trigger is the authoritative database-level guard against privilege escalation.
+-- It prevents any user from changing their own role (or escalating to 'founder').
+-- Even if the frontend, RLS policies, or API are bypassed (e.g. via direct Supabase
+-- client calls in the browser console), this trigger blocks the attack at DB level.
+
+create or replace function public.prevent_role_escalation()
+returns trigger as $$
+begin
+  -- Case 1: A user is trying to update their OWN row.
+  -- Non-admins cannot change their own role under any circumstances.
+  if auth.uid() = OLD.uid then
+    if NEW.role <> OLD.role and not is_admin(auth.uid()) then
+      raise exception 'Permission denied: You cannot change your own role. Contact an admin.';
+    end if;
+  end if;
+
+  -- Case 2: Even admins cannot assign the "founder" role via the API.
+  -- The founder role must be set directly in the database by a DB superuser.
+  -- This prevents admin accounts from granting themselves or others ultimate authority.
+  if NEW.role = 'founder' and OLD.role <> 'founder' then
+    if not exists (
+      select 1 from public.users where uid = auth.uid() and role = 'founder'
+    ) then
+      raise exception 'Permission denied: Only an existing founder can assign the founder role.';
+    end if;
+  end if;
+
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+-- Apply the role escalation prevention trigger to the users table
+drop trigger if exists prevent_role_escalation_trigger on public.users;
+create trigger prevent_role_escalation_trigger
+before update on public.users
+for each row execute function public.prevent_role_escalation();

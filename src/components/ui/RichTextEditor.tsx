@@ -25,6 +25,7 @@ interface RichTextEditorProps {
   uid: string;
   date: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 const MAX_IMAGE_DIMENSION = 800;
