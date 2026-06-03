@@ -129,9 +129,54 @@ export function useAuth(): UseAuthReturn {
           .maybeSingle();
 
         if (emailMatch) {
-          console.log('[Auth] Found profile by email (old Firebase user)');
+          console.log('[Auth] Found profile by email (old Firebase user). Migrating data...');
+          try {
+            const response = await fetch('/api/migrate-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                email: sbUser.email,
+                newUid: sbUser.id,
+                selectedRole: emailMatch.role || 'employee',
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Migration API returned status ${response.status}`);
+            }
+
+            const migrationData = await response.json();
+            console.log('[Auth] Migration completed successfully:', migrationData);
+
+            // Fetch newly migrated profile
+            const { data: newDoc } = await supabase
+              .from('users')
+              .select('*')
+              .eq('uid', sbUser.id)
+              .maybeSingle();
+
+            if (newDoc) {
+              const profileData: UserProfile = {
+                uid: newDoc.uid,
+                name: newDoc.name,
+                email: newDoc.email,
+                role: newDoc.role,
+                photoURL: newDoc.photo_url || undefined,
+                preferences: newDoc.preferences || undefined,
+              };
+              setProfile(profileData);
+              setShowRoleSelection(false);
+              return;
+            }
+          } catch (err) {
+            console.error('[Auth] Migration failed, falling back to local fallback session:', err);
+          }
+
+          // Fallback: load user locally even if DB migration failed
           const profileData: UserProfile = {
-            uid: emailMatch.uid,
+            uid: sbUser.id,
             name: emailMatch.name,
             email: emailMatch.email,
             role: emailMatch.role,
