@@ -104,6 +104,18 @@ export default async function handler(req, res) {
       .update({ voter_uid: newUid })
       .eq('voter_uid', oldProfile.uid);
 
+    // Migrate review_cycles (underperformer)
+    const { error: cycleUnderErr } = await supabase
+      .from('review_cycles')
+      .update({ underperformer_uid: newUid })
+      .eq('underperformer_uid', oldProfile.uid);
+
+    // Migrate review_cycles (tie_breaker)
+    const { error: cycleTieErr } = await supabase
+      .from('review_cycles')
+      .update({ tie_breaker_uid: newUid })
+      .eq('tie_breaker_uid', oldProfile.uid);
+
     // Delete old profile
     await supabase.from('users').delete().eq('uid', oldProfile.uid);
 
@@ -118,6 +130,8 @@ export default async function handler(req, res) {
         leaves: leavesErr?.message,
         ideas: ideasErr?.message,
         ballots: ballotsErr?.message,
+        cycleUnder: cycleUnderErr?.message,
+        cycleTie: cycleTieErr?.message,
       },
     });
   } catch (error) {
